@@ -1,0 +1,114 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { BLOG_POSTS } from '../constants';
+
+const sortedPosts = [...BLOG_POSTS].sort((a, b) => {
+  const dateA = new Date(a.date.replace(/\./g, '-'));
+  const dateB = new Date(b.date.replace(/\./g, '-'));
+  return dateB.getTime() - dateA.getTime();
+});
+
+const siteUrl = "https://blog.blinkad.kr";
+const mainSiteUrl = "https://blinkad.kr";
+---
+
+<Layout
+  title="Blog - Blink Ad"
+  description="검색 엔진 최적화(SEO)부터 디지털 브랜딩 전략까지. 프리미엄 SEO 에이전시 블링크애드의 인사이트."
+  canonical={siteUrl}
+>
+  <div class="min-h-screen bg-black text-white">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
+      <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <a href={mainSiteUrl} class="text-xl font-semibold tracking-tight hover:text-gray-300 transition-colors">Blink Ad</a>
+        <div class="flex items-center gap-8">
+          <a href={mainSiteUrl} class="text-sm text-gray-400 hover:text-white transition-colors">Home</a>
+          <a href={`${mainSiteUrl}/services`} class="text-sm text-gray-400 hover:text-white transition-colors">서비스</a>
+          <a href={`${mainSiteUrl}/case-studies`} class="text-sm text-gray-400 hover:text-white transition-colors">성공사례</a>
+          <a href="/" class="text-sm text-white" aria-current="page">Blog</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Header -->
+    <header class="pt-32 pb-16 px-6">
+      <div class="max-w-4xl mx-auto text-center">
+        <nav aria-label="breadcrumb" class="mb-8">
+          <ol class="flex items-center justify-center text-sm text-gray-500">
+            <li><a href={mainSiteUrl} class="hover:text-white transition-colors">홈</a></li>
+            <li class="mx-2">/</li>
+            <li class="text-gray-400" aria-current="page">블로그</li>
+          </ol>
+        </nav>
+        <h1 class="text-5xl md:text-6xl font-bold mb-6">Insights.</h1>
+        <p class="text-xl text-gray-500 keep-all">
+          검색 엔진 최적화(SEO)부터 디지털 브랜딩 전략까지.
+        </p>
+      </div>
+    </header>
+
+    <!-- Blog Posts Grid -->
+    <main class="max-w-6xl mx-auto px-6 pb-24">
+      {sortedPosts.length === 0 ? (
+        <div class="text-center py-16">
+          <p class="text-gray-500">아직 게시된 글이 없습니다.</p>
+        </div>
+      ) : (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {sortedPosts.map((post) => {
+            const dateISO = post.date.replace(/\./g, '-');
+            return (
+              <a href={`/${post.id}`} class="group block">
+                <article class="bg-white/5 rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1 h-full">
+                  <div class="aspect-video relative overflow-hidden">
+                    <img
+                      src={post.imageUrl}
+                      alt=""
+                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    {post.category && (
+                      <span class="absolute top-4 left-4 px-3 py-1 bg-brand-blue/90 text-white text-xs font-medium rounded-full">
+                        {post.category}
+                      </span>
+                    )}
+                  </div>
+                  <div class="p-6">
+                    <time class="text-sm text-gray-500" datetime={dateISO}>{post.date}</time>
+                    <h2 class="text-xl font-semibold mt-2 mb-3 line-clamp-2 group-hover:text-brand-blue transition-colors keep-all">
+                      {post.title}
+                    </h2>
+                    <div class="mt-4 flex items-center text-brand-blue text-sm font-medium">
+                      <span>읽기</span>
+                      <span class="ml-1 group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                  </div>
+                </article>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 py-12">
+      <div class="max-w-7xl mx-auto px-6 text-center">
+        <a href={mainSiteUrl} class="text-xl font-semibold tracking-tight mb-4 inline-block">Blink Ad</a>
+        <p class="text-gray-500 text-sm">Premium SEO Agency</p>
+        <p class="text-gray-600 text-xs mt-4">&copy; {new Date().getFullYear()} Blink Ad. All rights reserved.</p>
+      </div>
+    </footer>
+  </div>
+</Layout>
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

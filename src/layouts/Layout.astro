@@ -1,0 +1,148 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: string;
+  modifiedTime?: string;
+  author?: string;
+  canonical?: string;
+}
+
+const {
+  title,
+  description = "블링크애드 - 프리미엄 SEO 에이전시. 구글 첫 페이지 선점을 위한 검색 엔진 최적화 전문 기업.",
+  image = "https://images.unsplash.com/photo-1493612276216-ee3925520721?q=80&w=1200&auto=format&fit=crop",
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  author = "Blink Ad",
+  canonical
+} = Astro.props;
+
+const siteUrl = "https://blog.blinkad.kr";
+const currentUrl = canonical || `${siteUrl}${Astro.url.pathname}`;
+---
+
+<!DOCTYPE html>
+<html lang="ko" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Primary Meta Tags -->
+    <title>{title}</title>
+    <meta name="title" content={title} />
+    <meta name="description" content={description} />
+    <meta name="author" content={author} />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href={currentUrl} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={currentUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={image} />
+    <meta property="og:site_name" content="Blink Ad" />
+    <meta property="og:locale" content="ko_KR" />
+    {publishedTime && <meta property="article:published_time" content={publishedTime} />}
+    {modifiedTime && <meta property="article:modified_time" content={modifiedTime} />}
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={currentUrl} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+
+    <!-- Fonts with display=swap -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- RSS Feed -->
+    <link rel="alternate" type="application/rss+xml" title="Blink Ad Blog RSS Feed" href="/rss.xml" />
+
+    <!-- Schema.org WebSite -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Blink Ad",
+      "alternateName": "블링크애드",
+      "url": siteUrl,
+      "description": "프리미엄 SEO 에이전시. 구글 첫 페이지 선점을 위한 검색 엔진 최적화 전문 기업.",
+      "inLanguage": "ko-KR",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": `${siteUrl}/blog?q={search_term_string}`
+        },
+        "query-input": "required name=search_term_string"
+      }
+    })} />
+
+    <!-- Schema.org Organization -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Blink Ad",
+      "alternateName": "블링크애드",
+      "url": siteUrl,
+      "logo": `${siteUrl}/favicon.svg`,
+      "description": "프리미엄 SEO 에이전시. 구글 첫 페이지 선점을 위한 검색 엔진 최적화 전문 기업.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "availableLanguage": ["Korean", "English"]
+      },
+      "sameAs": []
+    })} />
+
+    <style is:global>
+      @import '../styles/global.css';
+
+      /* System font stack with Inter fallback */
+      :root {
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+
+      body {
+        font-family: var(--font-sans);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-black text-white">
+    <slot />
+
+    <!-- Deferred GA/GTM Loading -->
+    <script>
+      // Load analytics after page load for better performance
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          // Google Tag Manager placeholder
+          // Replace GTM-XXXXXXX with your actual GTM ID
+          /*
+          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+          })(window,document,'script','dataLayer','GTM-XXXXXXX');
+          */
+        }, 2000); // 2 second delay after load
+      });
+    </script>
+  </body>
+</html>

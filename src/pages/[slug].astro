@@ -1,0 +1,144 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { BLOG_POSTS } from '../constants';
+
+export function getStaticPaths() {
+  return BLOG_POSTS.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const relatedPosts = BLOG_POSTS.filter((p) => p.id !== post.id && p.category === post.category).slice(0, 2);
+
+const dateForISO = post.date.replace(/\./g, '-');
+const siteUrl = "https://blog.blinkad.kr";
+const mainSiteUrl = "https://blinkad.kr";
+const articleUrl = `${siteUrl}/${post.id}`;
+---
+
+<Layout
+  title={`${post.title} - Blink Ad`}
+  description={post.excerpt || post.title}
+  image={post.imageUrl}
+  canonical={articleUrl}
+>
+  <div class="min-h-screen bg-black text-white">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5">
+      <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <a href={mainSiteUrl} class="text-xl font-semibold tracking-tight hover:text-gray-300 transition-colors">Blink Ad</a>
+        <div class="flex items-center gap-8">
+          <a href={mainSiteUrl} class="text-sm text-gray-400 hover:text-white transition-colors">Home</a>
+          <a href={`${mainSiteUrl}/services`} class="text-sm text-gray-400 hover:text-white transition-colors">서비스</a>
+          <a href={`${mainSiteUrl}/case-studies`} class="text-sm text-gray-400 hover:text-white transition-colors">성공사례</a>
+          <a href="/" class="text-sm text-gray-400 hover:text-white transition-colors">Blog</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Article -->
+    <article class="pt-24 pb-16">
+      <header class="max-w-4xl mx-auto px-6 mb-12">
+        <nav aria-label="breadcrumb" class="mb-6">
+          <ol class="flex items-center text-sm text-gray-500">
+            <li><a href={mainSiteUrl} class="hover:text-white transition-colors">홈</a></li>
+            <li class="mx-2">/</li>
+            <li><a href="/" class="hover:text-white transition-colors">블로그</a></li>
+            <li class="mx-2">/</li>
+            <li class="text-gray-400 truncate max-w-[200px]">{post.title}</li>
+          </ol>
+        </nav>
+
+        <a href="/" class="inline-flex items-center text-gray-500 hover:text-white text-sm mb-8 transition-colors">
+          <span class="mr-2">←</span>
+          블로그로 돌아가기
+        </a>
+
+        {post.category && (
+          <span class="inline-block px-3 py-1 bg-brand-blue/20 text-brand-blue text-sm font-medium rounded-full mb-4">
+            {post.category}
+          </span>
+        )}
+
+        <h1 class="text-4xl md:text-5xl font-bold mb-6 keep-all leading-tight">
+          {post.title}
+        </h1>
+
+        <time class="text-gray-500 text-sm" datetime={dateForISO}>{post.date}</time>
+      </header>
+
+      <!-- Featured Image -->
+      <div class="max-w-5xl mx-auto px-6 mb-12">
+        <div class="aspect-video rounded-2xl overflow-hidden">
+          <img src={post.imageUrl} alt={post.title} class="w-full h-full object-cover" />
+        </div>
+      </div>
+
+      <!-- Content -->
+      <main class="max-w-3xl mx-auto px-6">
+        <div class="prose prose-invert prose-lg max-w-none blog-content" set:html={post.content} />
+      </main>
+    </article>
+
+    <!-- CTA -->
+    <section class="py-16 border-t border-white/10">
+      <div class="max-w-4xl mx-auto px-6 text-center">
+        <h2 class="text-3xl font-bold mb-4 keep-all">비즈니스 성장을 원하시나요?</h2>
+        <p class="text-gray-400 mb-8 keep-all">전문 SEO 컨설팅으로 검색 결과 1페이지를 선점하세요.</p>
+        <a href={`${mainSiteUrl}/#contact`} class="inline-flex items-center justify-center px-8 py-4 bg-brand-blue text-white font-semibold rounded-full hover:bg-blue-600 transition-colors">
+          무료진단 신청하기
+        </a>
+      </div>
+    </section>
+
+    <!-- Related Posts -->
+    {relatedPosts.length > 0 && (
+      <aside class="py-16 border-t border-white/10">
+        <div class="max-w-6xl mx-auto px-6">
+          <h2 class="text-2xl font-bold mb-8">관련 글</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {relatedPosts.map((relatedPost) => (
+              <a href={`/${relatedPost.id}`} class="group block">
+                <article class="bg-white/5 rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-all">
+                  <div class="aspect-video relative overflow-hidden">
+                    <img src={relatedPost.imageUrl} alt={relatedPost.title} class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                  </div>
+                  <div class="p-6">
+                    <time class="text-sm text-gray-500" datetime={relatedPost.date.replace(/\./g, '-')}>{relatedPost.date}</time>
+                    <h3 class="text-lg font-semibold mt-2 group-hover:text-brand-blue transition-colors keep-all">{relatedPost.title}</h3>
+                  </div>
+                </article>
+              </a>
+            ))}
+          </div>
+        </div>
+      </aside>
+    )}
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 py-12">
+      <div class="max-w-7xl mx-auto px-6 text-center">
+        <a href={mainSiteUrl} class="text-xl font-semibold tracking-tight mb-4 inline-block">Blink Ad</a>
+        <p class="text-gray-500 text-sm">Premium SEO Agency</p>
+        <p class="text-gray-600 text-xs mt-4">&copy; {new Date().getFullYear()} Blink Ad. All rights reserved.</p>
+      </div>
+    </footer>
+  </div>
+</Layout>
+
+<style is:global>
+  .blog-content { color: #e5e5e5; line-height: 1.8; }
+  .blog-content h2 { font-size: 1.75rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1rem; color: #fff; }
+  .blog-content h3 { font-size: 1.375rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: #fff; }
+  .blog-content p { margin-bottom: 1.5rem; word-break: keep-all; }
+  .blog-content li { margin-bottom: 0.5rem; padding-left: 1.5rem; position: relative; }
+  .blog-content li::before { content: "•"; position: absolute; left: 0; color: #0071E3; }
+  .blog-content a { color: #0071E3; text-decoration: underline; }
+  .blog-content strong { color: #fff; font-weight: 600; }
+  .blog-content blockquote { border-left: 3px solid #0071E3; padding-left: 1.5rem; margin: 1.5rem 0; font-style: italic; color: #a0a0a0; }
+  .blog-content table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; }
+  .blog-content th, .blog-content td { border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; text-align: left; }
+  .blog-content th { background: rgba(255,255,255,0.05); font-weight: 600; }
+</style>

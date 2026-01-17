@@ -1,0 +1,15 @@
+# Robots.txt for Blink Ad
+# https://blinkad.co.kr
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://blinkad.co.kr/sitemap-index.xml
+
+# Crawl-delay (optional, for polite crawling)
+Crawl-delay: 1
+
+# Block unnecessary paths
+Disallow: /api/
+Disallow: /_astro/
