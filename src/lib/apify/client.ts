@@ -30,21 +30,27 @@ export async function runActorAndGetResults<T>(
   input: Record<string, unknown>,
   maxItems: number = 50
 ): Promise<T[]> {
-  const client = getApifyClient();
+  try {
+    const client = getApifyClient();
 
-  // Actor 실행 (완료될 때까지 충분히 대기)
-  const run = await client.actor(actorId).call(input, {
-    waitSecs: 300, // 최대 5분 대기
-  });
+    // Actor 실행 (완료될 때까지 충분히 대기)
+    const run = await client.actor(actorId).call(input, {
+      waitSecs: 300, // 최대 5분 대기
+    });
 
-  if (!run.defaultDatasetId) {
+    if (!run.defaultDatasetId) {
+      return [];
+    }
+
+    // 결과 가져오기
+    const { items } = await client.dataset(run.defaultDatasetId).listItems({
+      limit: maxItems,
+    });
+
+    return items as T[];
+  } catch (error) {
+    // Apify 처리 중 발생한 에러는 조용히 처리하고 빈 배열 반환
+    console.error(`Apify actor ${actorId} error:`, error);
     return [];
   }
-
-  // 결과 가져오기
-  const { items } = await client.dataset(run.defaultDatasetId).listItems({
-    limit: maxItems,
-  });
-
-  return items as T[];
 }

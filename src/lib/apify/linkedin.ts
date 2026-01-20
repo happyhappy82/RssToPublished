@@ -28,41 +28,46 @@ export async function scrapeLinkedInPost(
   postUrl: string,
   maxComments: number = 50
 ): Promise<{ content: string; author: string | null }> {
-  const results = await runActorAndGetResults<LinkedInPost>(
-    "supreme_coder/linkedin-post",
-    {
-      urls: [postUrl],
-      limitPerSource: 1,
-      deepScrape: true,
-      scrapeComments: true,
-      maxComments: maxComments,
-    },
-    1
-  );
+  try {
+    const results = await runActorAndGetResults<LinkedInPost>(
+      "supreme_coder/linkedin-post",
+      {
+        urls: [postUrl],
+        limitPerSource: 1,
+        deepScrape: true,
+        scrapeComments: true,
+        maxComments: maxComments,
+      },
+      1
+    );
 
-  if (results.length === 0) {
+    if (results.length === 0) {
+      return { content: "", author: null };
+    }
+
+    const post = results[0];
+    const mainContent = post.text || "";
+    const author = post.authorName || null;
+
+    // 댓글 합치기
+    let fullContent = `[본문]\n${mainContent}`;
+
+    if (post.comments && post.comments.length > 0) {
+      fullContent += "\n\n[댓글]";
+      for (const comment of post.comments) {
+        const firstName = comment.author?.firstName || "";
+        const lastName = comment.author?.lastName || "";
+        const commentAuthor = `${firstName} ${lastName}`.trim() || "익명";
+        const commentText = comment.text || "";
+        fullContent += `\n- ${commentAuthor}: ${commentText}`;
+      }
+    }
+
+    return { content: fullContent, author };
+  } catch (error) {
+    console.error("LinkedIn post scrape failed:", error);
     return { content: "", author: null };
   }
-
-  const post = results[0];
-  const mainContent = post.text || "";
-  const author = post.authorName || null;
-
-  // 댓글 합치기
-  let fullContent = `[본문]\n${mainContent}`;
-
-  if (post.comments && post.comments.length > 0) {
-    fullContent += "\n\n[댓글]";
-    for (const comment of post.comments) {
-      const firstName = comment.author?.firstName || "";
-      const lastName = comment.author?.lastName || "";
-      const commentAuthor = `${firstName} ${lastName}`.trim() || "익명";
-      const commentText = comment.text || "";
-      fullContent += `\n- ${commentAuthor}: ${commentText}`;
-    }
-  }
-
-  return { content: fullContent, author };
 }
 
 /**
