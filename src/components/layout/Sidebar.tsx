@@ -51,7 +51,7 @@ export function Sidebar() {
       </nav>
 
       <div className="p-6 border-t border-slate-800">
-        <div className="bg-slate-950 p-4 rounded-2xl flex items-center space-x-3">
+        <div className="bg-slate-800 p-4 rounded-2xl flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white">
             관리
           </div>

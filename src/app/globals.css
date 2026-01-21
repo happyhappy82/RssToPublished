@@ -54,7 +54,7 @@
 }
 
 body {
-  background-color: #020617;
+  background-color: #0f172a;
   color: hsl(var(--foreground));
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
