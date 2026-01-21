@@ -89,8 +89,9 @@ export async function generateContent({
   const maxTokens = modelSettings?.maxTokens || 1024;
 
   const systemPrompt = contentTypePrompts[contentType];
+  // 커스텀 프롬프트가 있으면 커스텀 프롬프트만 사용 (기본 프롬프트 무시)
   const userPrompt = customPrompt
-    ? `[작성 지침]\n${systemPrompt}\n\n${customPrompt}\n\n[원본 콘텐츠]\n${originalContent}`
+    ? `[작성 지침]\n${customPrompt}\n\n[원본 콘텐츠]\n${originalContent}`
     : `[작성 지침]\n${systemPrompt}\n\n[원본 콘텐츠]\n${originalContent}`;
 
   const apiUrl = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
