@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ExternalLink, Sparkles, Youtube, Twitter, Linkedin, MessageCircle, Eye, Trash2, Download, Loader2, Check, Circle } from "lucide-react";
 import { useScrapedContents, useDeleteContent, useDeleteAllContents, useToggleUsed } from "@/hooks/useScrapedContent";
 import { useCategories } from "@/hooks/useSources";
 import ContentDetailModal from "@/components/ContentDetailModal";
-import type { Platform } from "@/types";
+import AIProcessModal from "@/components/AIProcessModal";
+import type { Platform, ScrapedContent } from "@/types";
 
 const PlatformIcon = ({ platform, size = 12 }: { platform: Platform; size?: number }) => {
   switch (platform) {
@@ -32,6 +32,7 @@ export default function ScrapedPage() {
   });
   const scraped = scrapedData?.data || [];
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
+  const [aiProcessContent, setAiProcessContent] = useState<ScrapedContent | null>(null);
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const deleteContent = useDeleteContent();
   const deleteAllContents = useDeleteAllContents();
@@ -231,13 +232,13 @@ export default function ScrapedPage() {
                   )}
                   <span className="hidden sm:inline">{fetchingIds.has(item.id) ? "가져오는 중..." : "본문"}</span>
                 </button>
-                <Link
-                  href={`/process?id=${item.id}`}
+                <button
+                  onClick={() => setAiProcessContent(item as ScrapedContent)}
                   className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all"
                 >
                   <Sparkles size={18} />
                   <span>AI로 가공</span>
-                </Link>
+                </button>
               </div>
             </div>
           ))
@@ -258,6 +259,16 @@ export default function ScrapedPage() {
           onFetchContent={async (id) => {
             await handleFetchContent(id);
           }}
+        />
+      )}
+
+      {/* AI 가공 모달 */}
+      {aiProcessContent && (
+        <AIProcessModal
+          isOpen={!!aiProcessContent}
+          onClose={() => setAiProcessContent(null)}
+          content={aiProcessContent}
+          onSuccess={() => refetch()}
         />
       )}
     </div>
