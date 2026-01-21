@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
                 published_at: rssItem.publishedAt,
                 scraped_at: new Date().toISOString(),
                 is_processed: false,
+                category: source.category || null, // 소스의 카테고리 복사
               },
               { onConflict: "platform,external_id", ignoreDuplicates: true }
             );
