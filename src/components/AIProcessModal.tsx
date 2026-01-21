@@ -171,7 +171,20 @@ export default function AIProcessModal({
               <p className="text-xs text-slate-500 max-w-lg truncate">{content.title || "제목 없음"}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
+            {/* 생성 버튼 - 헤더에 배치 */}
+            <button
+              onClick={handleProcess}
+              disabled={isProcessing || isRawHtml}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-700 disabled:to-slate-700 text-white px-6 py-2.5 rounded-xl font-bold flex items-center space-x-2 transition-all shadow-lg shadow-emerald-900/20"
+            >
+              {isProcessing ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Sparkles size={18} />
+              )}
+              <span>{isProcessing ? "생성 중..." : "마케팅 포스트 생성"}</span>
+            </button>
             <button
               onClick={() => setShowModelSettings(true)}
               className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white flex items-center space-x-1"
@@ -241,25 +254,11 @@ export default function AIProcessModal({
               <textarea
                 value={currentPrompt}
                 onChange={(e) => setCurrentPrompt(e.target.value)}
-                rows={6}
+                rows={8}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
                 placeholder="AI에게 전달할 지시사항을 입력하세요..."
               />
             </div>
-
-            {/* 생성 버튼 */}
-            <button
-              onClick={handleProcess}
-              disabled={isProcessing || isRawHtml}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-700 disabled:to-slate-700 text-white py-4 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all shadow-lg shadow-emerald-900/20"
-            >
-              {isProcessing ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                <Sparkles size={20} />
-              )}
-              <span>{isProcessing ? "AI가 콘텐츠 생성 중..." : "마케팅 포스트 생성"}</span>
-            </button>
           </div>
 
           {/* Right Column - Result */}
