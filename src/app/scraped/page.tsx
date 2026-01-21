@@ -33,6 +33,7 @@ export default function ScrapedPage() {
   const scraped = scrapedData?.data || [];
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
   const [aiProcessContent, setAiProcessContent] = useState<ScrapedContent | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null); // AI 처리 중인 콘텐츠 ID
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const deleteContent = useDeleteContent();
   const deleteAllContents = useDeleteAllContents();
@@ -234,10 +235,19 @@ export default function ScrapedPage() {
                 </button>
                 <button
                   onClick={() => setAiProcessContent(item as ScrapedContent)}
-                  className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all"
+                  disabled={processingId === item.id}
+                  className={`flex-1 md:flex-none text-white px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all ${
+                    processingId === item.id
+                      ? "bg-slate-700 cursor-not-allowed"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  }`}
                 >
-                  <Sparkles size={18} />
-                  <span>AI로 가공</span>
+                  {processingId === item.id ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={18} />
+                  )}
+                  <span>{processingId === item.id ? "생성 중..." : "AI로 가공"}</span>
                 </button>
               </div>
             </div>
@@ -269,6 +279,9 @@ export default function ScrapedPage() {
           onClose={() => setAiProcessContent(null)}
           content={aiProcessContent}
           onSuccess={() => refetch()}
+          onProcessingChange={(isProcessing) => {
+            setProcessingId(isProcessing ? aiProcessContent.id : null);
+          }}
         />
       )}
     </div>

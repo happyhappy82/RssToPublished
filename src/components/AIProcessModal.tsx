@@ -10,6 +10,7 @@ interface AIProcessModalProps {
   onClose: () => void;
   content: ScrapedContent;
   onSuccess?: () => void;
+  onProcessingChange?: (isProcessing: boolean) => void;
 }
 
 const platforms: { value: Platform; label: string }[] = [
@@ -23,6 +24,7 @@ export default function AIProcessModal({
   onClose,
   content,
   onSuccess,
+  onProcessingChange,
 }: AIProcessModalProps) {
   // 콘텐츠 유형
   const [contentType, setContentType] = useState<ContentType>("insight");
@@ -71,6 +73,7 @@ export default function AIProcessModal({
 
   const handleProcess = async () => {
     setIsProcessing(true);
+    onProcessingChange?.(true);
     try {
       const response = await fetch("/api/process", {
         method: "POST",
@@ -94,6 +97,7 @@ export default function AIProcessModal({
       alert("AI 가공 중 오류가 발생했습니다");
     } finally {
       setIsProcessing(false);
+      onProcessingChange?.(false);
     }
   };
 
