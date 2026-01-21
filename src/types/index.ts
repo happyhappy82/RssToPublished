@@ -1,15 +1,15 @@
 // 플랫폼 타입
 export type Platform = "twitter" | "youtube" | "linkedin" | "threads" | "website";
 
-// 콘텐츠 유형
-export type ContentType =
-  | "lament"        // 한탄글
-  | "foreign_case"  // 외국 사례 소개글
-  | "casual"        // 뻘글
-  | "insight"       // 인사이트 정리글
-  | "question"      // 질문형 글
-  | "listicle"      // 리스트형 정리글
-  | "storytelling"; // 스토리텔링형
+// 콘텐츠 유형 (동적으로 관리 가능)
+export type ContentType = string;
+
+// 콘텐츠 유형 아이템
+export interface ContentTypeItem {
+  id: string;
+  label: string;
+  prompt: string;
+}
 
 // 업로드 상태
 export type UploadStatus = "pending" | "scheduled" | "uploaded" | "failed";
@@ -90,16 +90,16 @@ export interface QueueItem {
   processed_content?: ProcessedContent;
 }
 
-// 콘텐츠 유형 정보
-export const CONTENT_TYPES: Record<ContentType, { label: string; description: string }> = {
-  lament: { label: "한탄글", description: "공감을 이끌어내는 한탄 스타일" },
-  foreign_case: { label: "외국 사례 소개글", description: "해외 사례를 한국에 소개" },
-  casual: { label: "뻘글", description: "가벼운 톤의 캐주얼한 글" },
-  insight: { label: "인사이트 정리글", description: "핵심 포인트 정리" },
-  question: { label: "질문형 글", description: "호기심 자극하는 질문형" },
-  listicle: { label: "리스트형 정리글", description: "N가지 방법 형식" },
-  storytelling: { label: "스토리텔링형", description: "스토리 구조로 전달" },
-};
+// 기본 콘텐츠 유형 (초기값)
+export const DEFAULT_CONTENT_TYPES: ContentTypeItem[] = [
+  { id: "lament", label: "한탄글 (공감형)", prompt: "이 내용을 바탕으로 한국 스레드 감성에 맞춰 약간의 한탄과 함께 공감을 유도하는 글을 작성해줘. 반말로 친근하게." },
+  { id: "foreign_case", label: "외국 사례 소개", prompt: "이 해외 사례를 한국 비즈니스 환경에 적용했을 때의 시사점을 포함하여 링크드인용으로 전문성 있게 정리해줘." },
+  { id: "casual", label: "뻘글 (가벼운 톤)", prompt: "이 내용을 아주 가볍고 재치 있게, 마치 친구에게 말하는 것처럼 짧은 스레드 게시물로 만들어줘." },
+  { id: "insight", label: "인사이트 정리", prompt: "핵심 인사이트 3가지를 도출하고, 각각의 실천 방안을 제시하는 전문가스러운 링크드인 포스트를 작성해줘." },
+  { id: "question", label: "질문형 글", prompt: "이 주제를 바탕으로 독자들의 참여를 이끌어낼 수 있는 흥미로운 질문과 함께 게시물을 작성해줘." },
+  { id: "listicle", label: "리스트형 정리", prompt: "이 내용을 5가지 핵심 포인트로 번호를 매겨서 읽기 쉽게 정리해줘. 이모지를 적절히 사용해." },
+  { id: "storytelling", label: "스토리텔링형", prompt: "이 정보가 하나의 흥미로운 이야기처럼 느껴지도록 기승전결을 갖춘 스토리텔링 방식으로 풀어서 써줘." },
+];
 
 // 플랫폼 정보
 export const PLATFORMS: Record<Platform, { label: string; icon: string; color: string }> = {

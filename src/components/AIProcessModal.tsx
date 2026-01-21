@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Sparkles, Loader2, Save, Copy, Settings, ExternalLink } from "lucide-react";
-import { CONTENT_TYPE_LABELS, DEFAULT_PROMPTS } from "@/lib/constants";
+import { X, Sparkles, Loader2, Save, Copy, Settings, ExternalLink, Plus, Trash2, RotateCcw } from "lucide-react";
+import { getContentTypes, updateContentType, addContentType, deleteContentType, resetContentTypes } from "@/lib/constants";
 import { useProcessStore } from "@/store";
-import type { ScrapedContent, ContentType } from "@/types";
+import type { ScrapedContent, ContentTypeItem } from "@/types";
 
 interface IntegrationSettings {
   notionApiKey: string;
@@ -31,18 +31,15 @@ export default function AIProcessModal({
   const job = processingJobs[content.id];
   const isProcessing = job?.status === "processing";
 
-  // 콘텐츠 유형
-  const [contentType, setContentType] = useState<ContentType>("insight");
+  // 콘텐츠 유형 목록 (localStorage에서 동적으로 관리)
+  const [contentTypes, setContentTypes] = useState<ContentTypeItem[]>([]);
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [currentPrompt, setCurrentPrompt] = useState<string>("");
 
-  // 유형별 프롬프트 맵 (로컬 스토리지에서 불러오기)
-  const [promptsMap, setPromptsMap] = useState<Record<ContentType, string>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("user_prompts");
-      return saved ? JSON.parse(saved) : DEFAULT_PROMPTS;
-    }
-    return DEFAULT_PROMPTS;
-  });
-  const [currentPrompt, setCurrentPrompt] = useState<string>(promptsMap[contentType]);
+  // 유형 관리 모달
+  const [showTypeManager, setShowTypeManager] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypePrompt, setNewTypePrompt] = useState("");
 
   // 모델 설정 (로컬 스토리지에서 불러오기)
   const [modelSettings, setModelSettings] = useState(() => {
@@ -62,6 +59,16 @@ export default function AIProcessModal({
   const [result, setResult] = useState("");
   const [isSavingToNotion, setIsSavingToNotion] = useState(false);
 
+  // 초기 로드: 콘텐츠 유형 불러오기
+  useEffect(() => {
+    const types = getContentTypes();
+    setContentTypes(types);
+    if (types.length > 0) {
+      setSelectedTypeId(types[0].id);
+      setCurrentPrompt(types[0].prompt);
+    }
+  }, []);
+
   // 모달 열릴 때 기존 작업 결과 복원
   useEffect(() => {
     if (isOpen && job?.status === "completed" && job.result) {
@@ -71,15 +78,72 @@ export default function AIProcessModal({
 
   // 콘텐츠 타입 변경 시 프롬프트 업데이트
   useEffect(() => {
-    setCurrentPrompt(promptsMap[contentType]);
-  }, [contentType, promptsMap]);
+    const selectedType = contentTypes.find(t => t.id === selectedTypeId);
+    if (selectedType) {
+      setCurrentPrompt(selectedType.prompt);
+    }
+  }, [selectedTypeId, contentTypes]);
 
   // 프롬프트 저장
   const savePrompt = () => {
-    const newMap = { ...promptsMap, [contentType]: currentPrompt };
-    setPromptsMap(newMap);
-    localStorage.setItem("user_prompts", JSON.stringify(newMap));
-    alert(`${CONTENT_TYPE_LABELS[contentType]} 유형의 프롬프트가 저장되었습니다.`);
+    const selectedType = contentTypes.find(t => t.id === selectedTypeId);
+    if (!selectedType) return;
+
+    const updatedTypes = updateContentType(selectedTypeId, { prompt: currentPrompt });
+    setContentTypes(updatedTypes);
+    alert(`"${selectedType.label}" 유형의 프롬프트가 저장되었습니다.`);
+  };
+
+  // 유형 추가
+  const handleAddType = () => {
+    if (!newTypeName.trim()) {
+      alert("유형 이름을 입력해주세요");
+      return;
+    }
+
+    const newType: ContentTypeItem = {
+      id: `custom_${Date.now()}`,
+      label: newTypeName.trim(),
+      prompt: newTypePrompt.trim() || "이 내용을 바탕으로 마케팅 콘텐츠를 작성해줘.",
+    };
+
+    const updatedTypes = addContentType(newType);
+    setContentTypes(updatedTypes);
+    setNewTypeName("");
+    setNewTypePrompt("");
+    setSelectedTypeId(newType.id);
+    alert(`"${newType.label}" 유형이 추가되었습니다.`);
+  };
+
+  // 유형 삭제
+  const handleDeleteType = (id: string) => {
+    const typeToDelete = contentTypes.find(t => t.id === id);
+    if (!typeToDelete) return;
+
+    if (contentTypes.length <= 1) {
+      alert("최소 1개의 유형은 있어야 합니다.");
+      return;
+    }
+
+    if (!confirm(`"${typeToDelete.label}" 유형을 삭제하시겠습니까?`)) return;
+
+    const updatedTypes = deleteContentType(id);
+    setContentTypes(updatedTypes);
+
+    // 삭제된 유형이 선택되어 있었으면 첫 번째로 변경
+    if (selectedTypeId === id && updatedTypes.length > 0) {
+      setSelectedTypeId(updatedTypes[0].id);
+    }
+  };
+
+  // 기본값으로 초기화
+  const handleResetTypes = () => {
+    if (!confirm("모든 유형을 기본값으로 초기화하시겠습니까? 커스텀 유형이 모두 삭제됩니다.")) return;
+
+    const defaultTypes = resetContentTypes();
+    setContentTypes(defaultTypes);
+    setSelectedTypeId(defaultTypes[0].id);
+    alert("기본값으로 초기화되었습니다.");
   };
 
   // 백그라운드 처리 시작 - 컴포넌트 언마운트와 무관하게 동작
@@ -95,7 +159,7 @@ export default function AIProcessModal({
     const contentId = content.id;
     const requestBody = {
       scraped_content_id: content.id,
-      content_type: contentType,
+      content_type: selectedTypeId,
       prompt_used: currentPrompt,
       model_settings: modelSettings,
     };
@@ -141,6 +205,8 @@ export default function AIProcessModal({
       return;
     }
 
+    const selectedType = contentTypes.find(t => t.id === selectedTypeId);
+
     setIsSavingToNotion(true);
     try {
       // Notion에 저장
@@ -152,7 +218,7 @@ export default function AIProcessModal({
           notionDatabaseId: integrationSettings.notionDatabaseId,
           title: content.title || "AI 생성 콘텐츠",
           content: result,
-          contentType: CONTENT_TYPE_LABELS[contentType],
+          contentType: selectedType?.label || "기타",
           targetPlatforms: [],
           sourceUrl: content.original_url,
         }),
@@ -252,21 +318,30 @@ export default function AIProcessModal({
 
             {/* 콘텐츠 유형 선택 */}
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">
-                마케팅 콘텐츠 유형
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-slate-400">
+                  마케팅 콘텐츠 유형
+                </label>
+                <button
+                  onClick={() => setShowTypeManager(true)}
+                  className="text-xs text-blue-500 hover:text-blue-400 flex items-center space-x-1"
+                >
+                  <Settings size={14} />
+                  <span>유형 관리</span>
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                {(Object.keys(CONTENT_TYPE_LABELS) as ContentType[]).map((type) => (
+                {contentTypes.map((type) => (
                   <button
-                    key={type}
-                    onClick={() => setContentType(type)}
+                    key={type.id}
+                    onClick={() => setSelectedTypeId(type.id)}
                     className={`p-2.5 rounded-xl text-xs font-medium border transition-all ${
-                      contentType === type
+                      selectedTypeId === type.id
                         ? "bg-blue-600/20 border-blue-500 text-blue-400"
                         : "bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700"
                     }`}
                   >
-                    {CONTENT_TYPE_LABELS[type]}
+                    {type.label}
                   </button>
                 ))}
               </div>
@@ -345,6 +420,87 @@ export default function AIProcessModal({
           </div>
         </div>
       </div>
+
+      {/* 유형 관리 모달 */}
+      {showTypeManager && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <h3 className="text-xl font-bold flex items-center space-x-2">
+                <Settings size={20} className="text-blue-500" />
+                <span>콘텐츠 유형 관리</span>
+              </h3>
+              <button
+                onClick={() => setShowTypeManager(false)}
+                className="text-slate-500 hover:text-white p-1 hover:bg-slate-800 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto">
+              {/* 새 유형 추가 */}
+              <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                <h4 className="text-sm font-medium text-slate-300 flex items-center space-x-2">
+                  <Plus size={16} className="text-emerald-500" />
+                  <span>새 유형 추가</span>
+                </h4>
+                <input
+                  type="text"
+                  value={newTypeName}
+                  onChange={(e) => setNewTypeName(e.target.value)}
+                  placeholder="유형 이름 (예: 뉴스레터형)"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <textarea
+                  value={newTypePrompt}
+                  onChange={(e) => setNewTypePrompt(e.target.value)}
+                  placeholder="기본 프롬프트 (선택사항)"
+                  rows={3}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                />
+                <button
+                  onClick={handleAddType}
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium text-sm transition-all flex items-center justify-center space-x-2"
+                >
+                  <Plus size={16} />
+                  <span>추가</span>
+                </button>
+              </div>
+
+              {/* 기존 유형 목록 */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-slate-400">기존 유형 ({contentTypes.length}개)</h4>
+                {contentTypes.map((type) => (
+                  <div
+                    key={type.id}
+                    className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">{type.label}</p>
+                      <p className="text-xs text-slate-500 truncate max-w-[280px]">{type.prompt}</p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteType(type.id)}
+                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* 초기화 버튼 */}
+              <button
+                onClick={handleResetTypes}
+                className="w-full py-2.5 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-600 rounded-xl font-medium text-sm transition-all flex items-center justify-center space-x-2"
+              >
+                <RotateCcw size={16} />
+                <span>기본값으로 초기화</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 모델 설정 모달 */}
       {showModelSettings && (

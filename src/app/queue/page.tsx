@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, ChevronRight, Clock, Plus, Settings, X, ExternalLink, Database, Webhook } from "lucide-react";
+import { Trash2, ChevronRight, Clock, Plus, Settings, X, ExternalLink, Database, Webhook, Eye, EyeOff } from "lucide-react";
 import { useQueue, useDeleteQueueItem, useUploadNow } from "@/hooks/useQueue";
 
 interface IntegrationSettings {
   notionApiKey: string;
   notionDatabaseId: string;
+  notionEmbedUrl: string;
   makeWebhookUrl: string;
 }
 
@@ -20,15 +21,25 @@ export default function QueuePage() {
   const [settings, setSettings] = useState<IntegrationSettings>({
     notionApiKey: "",
     notionDatabaseId: "",
+    notionEmbedUrl: "",
     makeWebhookUrl: "",
   });
+
+  // 임베드 표시 여부
+  const [showEmbed, setShowEmbed] = useState(true);
 
   // 로컬 스토리지에서 설정 불러오기
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("integration_settings");
       if (saved) {
-        setSettings(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        setSettings({
+          notionApiKey: parsed.notionApiKey || "",
+          notionDatabaseId: parsed.notionDatabaseId || "",
+          notionEmbedUrl: parsed.notionEmbedUrl || "",
+          makeWebhookUrl: parsed.makeWebhookUrl || "",
+        });
       }
     }
   }, []);
@@ -62,6 +73,18 @@ export default function QueuePage() {
   // Notion 연동 여부 확인
   const isNotionConnected = settings.notionApiKey && settings.notionDatabaseId;
   const isMakeConnected = !!settings.makeWebhookUrl;
+  const hasEmbedUrl = !!settings.notionEmbedUrl;
+
+  // Notion 임베드 URL 변환 (공개 URL -> 임베드 URL)
+  const getEmbedUrl = (url: string) => {
+    if (!url) return "";
+    // notion.so URL을 임베드 가능한 형태로 변환
+    // 이미 임베드 URL이면 그대로 사용
+    if (url.includes("notion.site") || url.includes("notion.so")) {
+      return url;
+    }
+    return url;
+  };
 
   return (
     <div className="space-y-6">
@@ -106,6 +129,45 @@ export default function QueuePage() {
           </div>
         </div>
       </div>
+
+      {/* Notion 데이터베이스 임베드 */}
+      {hasEmbedUrl && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+          <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <Database size={18} className="text-emerald-400" />
+              <span className="font-medium">Notion 데이터베이스</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <a
+                href={settings.notionEmbedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-400 hover:text-white flex items-center space-x-1"
+              >
+                <ExternalLink size={14} />
+                <span>새 탭에서 열기</span>
+              </a>
+              <button
+                onClick={() => setShowEmbed(!showEmbed)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+              >
+                {showEmbed ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          {showEmbed && (
+            <div className="relative" style={{ paddingBottom: "60%", height: 0 }}>
+              <iframe
+                src={getEmbedUrl(settings.notionEmbedUrl)}
+                className="absolute top-0 left-0 w-full h-full border-0"
+                style={{ minHeight: "500px" }}
+                allow="fullscreen"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 대기열 테이블 */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
@@ -212,8 +274,8 @@ export default function QueuePage() {
       {/* 설정 모달 */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-          <div className="bg-slate-900 border border-slate-700/50 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+          <div className="bg-slate-900 border border-slate-700/50 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-slate-900 z-10">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-blue-500/20 rounded-xl">
                   <Settings size={20} className="text-blue-400" />
@@ -229,11 +291,11 @@ export default function QueuePage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Notion 설정 */}
+              {/* Notion API 설정 */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Database size={18} className="text-slate-400" />
-                  <h4 className="font-medium">Notion 연동</h4>
+                  <h4 className="font-medium">Notion API 연동</h4>
                 </div>
                 <p className="text-xs text-slate-500">
                   AI로 생성된 콘텐츠를 Notion 데이터베이스에 저장합니다.{" "}
@@ -270,6 +332,31 @@ export default function QueuePage() {
                       데이터베이스 URL에서 추출: notion.so/[Database ID]?v=...
                     </p>
                   </div>
+                </div>
+              </div>
+
+              {/* Notion 임베드 설정 */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                <div className="flex items-center space-x-2">
+                  <Eye size={18} className="text-slate-400" />
+                  <h4 className="font-medium">Notion 데이터베이스 임베드</h4>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Notion 데이터베이스를 이 페이지에서 바로 볼 수 있습니다.
+                  데이터베이스를 &quot;웹에 공개&quot;한 후 URL을 입력하세요.
+                </p>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Notion 공개 URL</label>
+                  <input
+                    type="url"
+                    value={settings.notionEmbedUrl}
+                    onChange={(e) => setSettings({ ...settings, notionEmbedUrl: e.target.value })}
+                    placeholder="https://your-workspace.notion.site/..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-slate-600 mt-1">
+                    데이터베이스 → 공유 → 웹에 공개 → 링크 복사
+                  </p>
                 </div>
               </div>
 
