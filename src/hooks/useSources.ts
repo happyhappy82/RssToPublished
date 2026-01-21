@@ -31,10 +31,10 @@ async function createSource(input: CreateSourceInput): Promise<Source> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (!response.ok) {
-    throw new Error("Failed to create source");
-  }
   const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.error || "Failed to create source");
+  }
   return result.data;
 }
 

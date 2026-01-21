@@ -70,8 +70,9 @@ export default function SourcesPage() {
       });
       setNewCategory("");
       setIsCreatingCategory(false);
-    } catch {
-      alert("소스 추가에 실패했습니다");
+    } catch (error) {
+      console.error("소스 추가 에러:", error);
+      alert(`소스 추가에 실패했습니다: ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
     }
   };
 
