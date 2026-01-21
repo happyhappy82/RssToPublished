@@ -25,7 +25,8 @@ async function fetchQueue(status?: UploadStatus): Promise<QueueItem[]> {
   if (!response.ok) {
     throw new Error("Failed to fetch queue");
   }
-  return response.json();
+  const result = await response.json();
+  return result.data || [];
 }
 
 async function createQueueItem(input: CreateQueueItemInput): Promise<QueueItem> {
@@ -37,7 +38,8 @@ async function createQueueItem(input: CreateQueueItemInput): Promise<QueueItem> 
   if (!response.ok) {
     throw new Error("Failed to create queue item");
   }
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }
 
 async function updateQueueItem(input: UpdateQueueItemInput): Promise<QueueItem> {
