@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/client";
 import { getVideoTranscript, extractVideoId } from "@/lib/scrapers/youtube-transcript";
-import { scrapeWebpage } from "@/lib/scrapers/website";
 import { scrapeTwitterPost } from "@/lib/apify/twitter";
 import { scrapeLinkedInPost } from "@/lib/apify/linkedin";
 import { scrapeThreadsPost } from "@/lib/apify/threads";
 import { scrapeYouTubeComments } from "@/lib/apify/youtube";
+import { scrapeWebsiteWithApify } from "@/lib/apify/website";
 import { generateContent } from "@/lib/ai/gemini";
 import type { ContentType } from "@/types";
 
@@ -31,7 +31,7 @@ async function fetchFullContent(
       }
 
       case "website": {
-        const webContent = await scrapeWebpage(url);
+        const webContent = await scrapeWebsiteWithApify(url);
         if (webContent?.content) {
           return { content: webContent.content, author: webContent.author || undefined };
         }
