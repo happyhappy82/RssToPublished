@@ -37,10 +37,10 @@ export async function generateContent({
   const temperature = modelSettings?.temperature ?? 0.8;
   const maxTokens = modelSettings?.maxTokens || 1024;
 
-  // 커스텀 프롬프트만 사용
+  // 커스텀 프롬프트(시스템 프롬프트) + 원본 소스
   const userPrompt = customPrompt
-    ? `[작성 지침]\n${customPrompt}\n\n[원본 콘텐츠]\n${originalContent}`
-    : `[원본 콘텐츠]\n${originalContent}`;
+    ? `${customPrompt}\n\n원본 소스:\n${originalContent}`
+    : `원본 소스:\n${originalContent}`;
 
   const apiUrl = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
 
