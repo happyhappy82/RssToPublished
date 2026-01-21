@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Sparkles, Loader2, Send, Save, Copy, Settings, ExternalLink } from "lucide-react";
+import { X, Sparkles, Loader2, Save, Copy, Settings, ExternalLink } from "lucide-react";
 import { CONTENT_TYPE_LABELS, DEFAULT_PROMPTS } from "@/lib/constants";
 import { useProcessStore } from "@/store";
-import type { ScrapedContent, Platform, ContentType } from "@/types";
+import type { ScrapedContent, ContentType } from "@/types";
 
 interface IntegrationSettings {
   notionApiKey: string;
@@ -18,12 +18,6 @@ interface AIProcessModalProps {
   content: ScrapedContent;
   onSuccess?: () => void;
 }
-
-const platforms: { value: Platform; label: string }[] = [
-  { value: "threads", label: "Threads" },
-  { value: "twitter", label: "Twitter/X" },
-  { value: "linkedin", label: "LinkedIn" },
-];
 
 export default function AIProcessModal({
   isOpen,
@@ -66,8 +60,7 @@ export default function AIProcessModal({
 
   // 결과 (job에서 가져오거나 로컬 상태)
   const [result, setResult] = useState("");
-  const [isAddingToQueue, setIsAddingToQueue] = useState(false);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["threads"]);
+  const [isSavingToNotion, setIsSavingToNotion] = useState(false);
 
   // 모달 열릴 때 기존 작업 결과 복원
   useEffect(() => {
@@ -130,13 +123,9 @@ export default function AIProcessModal({
     }
   };
 
-  const handleAddToQueue = async () => {
+  const handleSaveToNotion = async () => {
     if (!result.trim()) {
       alert("먼저 AI로 콘텐츠를 생성해주세요");
-      return;
-    }
-    if (selectedPlatforms.length === 0) {
-      alert("업로드할 플랫폼을 선택해주세요");
       return;
     }
 
@@ -152,7 +141,7 @@ export default function AIProcessModal({
       return;
     }
 
-    setIsAddingToQueue(true);
+    setIsSavingToNotion(true);
     try {
       // Notion에 저장
       const response = await fetch("/api/notion", {
@@ -164,7 +153,7 @@ export default function AIProcessModal({
           title: content.title || "AI 생성 콘텐츠",
           content: result,
           contentType: CONTENT_TYPE_LABELS[contentType],
-          targetPlatforms: selectedPlatforms,
+          targetPlatforms: [],
           sourceUrl: content.original_url,
         }),
       });
@@ -188,16 +177,8 @@ export default function AIProcessModal({
       console.error("Notion error:", error);
       alert("Notion 저장 중 오류가 발생했습니다");
     } finally {
-      setIsAddingToQueue(false);
+      setIsSavingToNotion(false);
     }
-  };
-
-  const togglePlatform = (platform: Platform) => {
-    setSelectedPlatforms((prev) =>
-      prev.includes(platform)
-        ? prev.filter((p) => p !== platform)
-        : [...prev, platform]
-    );
   };
 
   const handleCopy = () => {
@@ -346,40 +327,19 @@ export default function AIProcessModal({
               className="w-full h-[calc(100%-180px)] min-h-[300px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-200 leading-relaxed"
             />
 
-            {/* 플랫폼 선택 & 대기열 추가 */}
-            <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">
-                  업로드 플랫폼
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {platforms.map((p) => (
-                    <button
-                      key={p.value}
-                      onClick={() => togglePlatform(p.value)}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                        selectedPlatforms.includes(p.value)
-                          ? "bg-blue-600 text-white"
-                          : "bg-slate-800 text-slate-400 hover:bg-slate-700"
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+            {/* Notion 저장 */}
+            <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
               <button
-                onClick={handleAddToQueue}
-                disabled={isAddingToQueue || !result.trim() || isProcessing}
+                onClick={handleSaveToNotion}
+                disabled={isSavingToNotion || !result.trim() || isProcessing}
                 className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white py-3 rounded-xl font-medium flex items-center justify-center space-x-2 transition-all"
               >
-                {isAddingToQueue ? (
+                {isSavingToNotion ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
                   <ExternalLink size={18} />
                 )}
-                <span>{isAddingToQueue ? "저장 중..." : "Notion에 저장"}</span>
+                <span>{isSavingToNotion ? "저장 중..." : "Notion에 저장"}</span>
               </button>
             </div>
           </div>
