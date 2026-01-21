@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Sparkles, Loader2, Send, Save, Copy, Settings } from "lucide-react";
 import { CONTENT_TYPE_LABELS, DEFAULT_PROMPTS } from "@/lib/constants";
+import { useProcessStore } from "@/store";
 import type { ScrapedContent, Platform, ContentType } from "@/types";
 
 interface AIProcessModalProps {
@@ -10,7 +11,6 @@ interface AIProcessModalProps {
   onClose: () => void;
   content: ScrapedContent;
   onSuccess?: () => void;
-  onProcessingChange?: (isProcessing: boolean) => void;
 }
 
 const platforms: { value: Platform; label: string }[] = [
@@ -24,8 +24,19 @@ export default function AIProcessModal({
   onClose,
   content,
   onSuccess,
-  onProcessingChange,
 }: AIProcessModalProps) {
+  // 전역 상태에서 처리 작업 가져오기
+  const {
+    processingJobs,
+    startProcessingJob,
+    completeProcessingJob,
+    failProcessingJob,
+    clearProcessingJob,
+  } = useProcessStore();
+
+  const job = processingJobs[content.id];
+  const isProcessing = job?.status === "processing";
+
   // 콘텐츠 유형
   const [contentType, setContentType] = useState<ContentType>("insight");
 
@@ -46,17 +57,27 @@ export default function AIProcessModal({
       return saved ? JSON.parse(saved) : {
         model: "gemini-3-flash-preview",
         temperature: 0.8,
-        maxTokens: 65536, // 무제한에 가깝게
+        maxTokens: 65536,
       };
     }
     return { model: "gemini-3-flash-preview", temperature: 0.8, maxTokens: 65536 };
   });
   const [showModelSettings, setShowModelSettings] = useState(false);
 
+  // 결과 (job에서 가져오거나 로컬 상태)
   const [result, setResult] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isAddingToQueue, setIsAddingToQueue] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["threads"]);
+
+  // AbortController ref for cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // 모달 열릴 때 기존 작업 결과 복원
+  useEffect(() => {
+    if (isOpen && job?.status === "completed" && job.result) {
+      setResult(job.result);
+    }
+  }, [isOpen, job]);
 
   // 콘텐츠 타입 변경 시 프롬프트 업데이트
   useEffect(() => {
@@ -71,9 +92,18 @@ export default function AIProcessModal({
     alert(`${CONTENT_TYPE_LABELS[contentType]} 유형의 프롬프트가 저장되었습니다.`);
   };
 
+  // 백그라운드 처리 시작
   const handleProcess = async () => {
-    setIsProcessing(true);
-    onProcessingChange?.(true);
+    // 이미 처리 중이면 무시
+    if (isProcessing) return;
+
+    // 전역 상태에 처리 시작 기록
+    startProcessingJob(content.id);
+
+    // AbortController 생성 (하지만 모달 닫아도 취소 안함)
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const response = await fetch("/api/process", {
         method: "POST",
@@ -84,20 +114,26 @@ export default function AIProcessModal({
           prompt_used: currentPrompt,
           model_settings: modelSettings,
         }),
+        // signal 제거 - 모달 닫아도 취소 안함
       });
 
       const data = await response.json();
+
       if (response.ok && data.data?.processed_content) {
+        // 전역 상태에 결과 저장
+        completeProcessingJob(content.id, data.data.processed_content);
         setResult(data.data.processed_content);
       } else {
+        failProcessingJob(content.id, data.error || "AI 가공에 실패했습니다");
         alert(data.error || "AI 가공에 실패했습니다");
       }
     } catch (error) {
-      console.error("Process error:", error);
-      alert("AI 가공 중 오류가 발생했습니다");
-    } finally {
-      setIsProcessing(false);
-      onProcessingChange?.(false);
+      // 취소된 경우가 아니면 에러 처리
+      if (error instanceof Error && error.name !== "AbortError") {
+        console.error("Process error:", error);
+        failProcessingJob(content.id, "AI 가공 중 오류가 발생했습니다");
+        alert("AI 가공 중 오류가 발생했습니다");
+      }
     }
   };
 
@@ -124,6 +160,8 @@ export default function AIProcessModal({
 
       if (response.ok) {
         alert("대기열에 추가되었습니다!");
+        // 작업 완료 후 정리
+        clearProcessingJob(content.id);
         onSuccess?.();
         onClose();
       } else {
@@ -266,6 +304,11 @@ export default function AIProcessModal({
             <div className="flex justify-between items-center">
               <label className="block text-sm font-medium text-slate-400">
                 가공 완료 결과 (수정 가능)
+                {isProcessing && (
+                  <span className="ml-2 text-emerald-400 animate-pulse">
+                    AI가 생성 중...
+                  </span>
+                )}
               </label>
               {result && (
                 <button
@@ -280,7 +323,10 @@ export default function AIProcessModal({
             <textarea
               value={result}
               onChange={(e) => setResult(e.target.value)}
-              placeholder="AI가 생성한 결과물이 여기에 표시됩니다. 왼쪽에서 설정을 마치고 '생성' 버튼을 눌러주세요."
+              placeholder={isProcessing
+                ? "AI가 콘텐츠를 생성하고 있습니다. 잠시만 기다려주세요..."
+                : "AI가 생성한 결과물이 여기에 표시됩니다. 왼쪽에서 설정을 마치고 '생성' 버튼을 눌러주세요."
+              }
               className="w-full h-[calc(100%-180px)] min-h-[300px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-200 leading-relaxed"
             />
 
@@ -309,7 +355,7 @@ export default function AIProcessModal({
 
               <button
                 onClick={handleAddToQueue}
-                disabled={isAddingToQueue || !result.trim()}
+                disabled={isAddingToQueue || !result.trim() || isProcessing}
                 className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white py-3 rounded-xl font-medium flex items-center justify-center space-x-2 transition-all"
               >
                 {isAddingToQueue ? (

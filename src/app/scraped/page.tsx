@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ExternalLink, Sparkles, Youtube, Twitter, Linkedin, MessageCircle, Eye, Trash2, Download, Loader2, Check, Circle } from "lucide-react";
 import { useScrapedContents, useDeleteContent, useDeleteAllContents, useToggleUsed } from "@/hooks/useScrapedContent";
 import { useCategories } from "@/hooks/useSources";
+import { useProcessStore } from "@/store";
 import ContentDetailModal from "@/components/ContentDetailModal";
 import AIProcessModal from "@/components/AIProcessModal";
 import type { Platform, ScrapedContent } from "@/types";
@@ -33,8 +34,10 @@ export default function ScrapedPage() {
   const scraped = scrapedData?.data || [];
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
   const [aiProcessContent, setAiProcessContent] = useState<ScrapedContent | null>(null);
-  const [processingId, setProcessingId] = useState<string | null>(null); // AI 처리 중인 콘텐츠 ID
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
+
+  // 글로벌 상태에서 처리 중인 작업들 가져오기
+  const { processingJobs } = useProcessStore();
   const deleteContent = useDeleteContent();
   const deleteAllContents = useDeleteAllContents();
   const toggleUsed = useToggleUsed();
@@ -235,19 +238,19 @@ export default function ScrapedPage() {
                 </button>
                 <button
                   onClick={() => setAiProcessContent(item as ScrapedContent)}
-                  disabled={processingId === item.id}
+                  disabled={processingJobs[item.id]?.status === "processing"}
                   className={`flex-1 md:flex-none text-white px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all ${
-                    processingId === item.id
+                    processingJobs[item.id]?.status === "processing"
                       ? "bg-slate-700 cursor-not-allowed"
                       : "bg-emerald-600 hover:bg-emerald-500"
                   }`}
                 >
-                  {processingId === item.id ? (
+                  {processingJobs[item.id]?.status === "processing" ? (
                     <Loader2 size={18} className="animate-spin" />
                   ) : (
                     <Sparkles size={18} />
                   )}
-                  <span>{processingId === item.id ? "생성 중..." : "AI로 가공"}</span>
+                  <span>{processingJobs[item.id]?.status === "processing" ? "생성 중..." : "AI로 가공"}</span>
                 </button>
               </div>
             </div>
@@ -279,9 +282,6 @@ export default function ScrapedPage() {
           onClose={() => setAiProcessContent(null)}
           content={aiProcessContent}
           onSuccess={() => refetch()}
-          onProcessingChange={(isProcessing) => {
-            setProcessingId(isProcessing ? aiProcessContent.id : null);
-          }}
         />
       )}
     </div>

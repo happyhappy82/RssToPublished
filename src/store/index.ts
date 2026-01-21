@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import type { ScrapedContent, ContentType } from "@/types";
 
+interface ProcessingJob {
+  contentId: string;
+  status: "processing" | "completed" | "error";
+  result?: string;
+  error?: string;
+  startedAt: number;
+}
+
 interface ProcessStore {
   // 선택된 원본 콘텐츠
   selectedContent: ScrapedContent | null;
@@ -22,11 +30,19 @@ interface ProcessStore {
   isGenerating: boolean;
   setIsGenerating: (loading: boolean) => void;
 
+  // 백그라운드 처리 작업 (contentId -> job)
+  processingJobs: Record<string, ProcessingJob>;
+  startProcessingJob: (contentId: string) => void;
+  completeProcessingJob: (contentId: string, result: string) => void;
+  failProcessingJob: (contentId: string, error: string) => void;
+  getProcessingJob: (contentId: string) => ProcessingJob | undefined;
+  clearProcessingJob: (contentId: string) => void;
+
   // 리셋
   reset: () => void;
 }
 
-export const useProcessStore = create<ProcessStore>((set) => ({
+export const useProcessStore = create<ProcessStore>((set, get) => ({
   selectedContent: null,
   setSelectedContent: (content) => set({ selectedContent: content }),
 
@@ -41,6 +57,49 @@ export const useProcessStore = create<ProcessStore>((set) => ({
 
   isGenerating: false,
   setIsGenerating: (loading) => set({ isGenerating: loading }),
+
+  // 백그라운드 처리 작업
+  processingJobs: {},
+
+  startProcessingJob: (contentId) => set((state) => ({
+    processingJobs: {
+      ...state.processingJobs,
+      [contentId]: {
+        contentId,
+        status: "processing",
+        startedAt: Date.now(),
+      },
+    },
+  })),
+
+  completeProcessingJob: (contentId, result) => set((state) => ({
+    processingJobs: {
+      ...state.processingJobs,
+      [contentId]: {
+        ...state.processingJobs[contentId],
+        status: "completed",
+        result,
+      },
+    },
+  })),
+
+  failProcessingJob: (contentId, error) => set((state) => ({
+    processingJobs: {
+      ...state.processingJobs,
+      [contentId]: {
+        ...state.processingJobs[contentId],
+        status: "error",
+        error,
+      },
+    },
+  })),
+
+  getProcessingJob: (contentId) => get().processingJobs[contentId],
+
+  clearProcessingJob: (contentId) => set((state) => {
+    const { [contentId]: _, ...rest } = state.processingJobs;
+    return { processingJobs: rest };
+  }),
 
   reset: () =>
     set({
