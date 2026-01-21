@@ -1,12 +1,44 @@
 "use client";
 
-import { Trash2, ChevronRight, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trash2, ChevronRight, Clock, Plus, Settings, X, ExternalLink, Database, Webhook } from "lucide-react";
 import { useQueue, useDeleteQueueItem, useUploadNow } from "@/hooks/useQueue";
+
+interface IntegrationSettings {
+  notionApiKey: string;
+  notionDatabaseId: string;
+  makeWebhookUrl: string;
+}
 
 export default function QueuePage() {
   const { data: queue, isLoading } = useQueue();
   const deleteItem = useDeleteQueueItem();
   const uploadNow = useUploadNow();
+
+  // 설정 모달 상태
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<IntegrationSettings>({
+    notionApiKey: "",
+    notionDatabaseId: "",
+    makeWebhookUrl: "",
+  });
+
+  // 로컬 스토리지에서 설정 불러오기
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("integration_settings");
+      if (saved) {
+        setSettings(JSON.parse(saved));
+      }
+    }
+  }, []);
+
+  // 설정 저장
+  const saveSettings = () => {
+    localStorage.setItem("integration_settings", JSON.stringify(settings));
+    alert("설정이 저장되었습니다.");
+    setShowSettings(false);
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm("이 항목을 삭제하시겠습니까?")) {
@@ -27,10 +59,55 @@ export default function QueuePage() {
     }
   };
 
+  // Notion 연동 여부 확인
+  const isNotionConnected = settings.notionApiKey && settings.notionDatabaseId;
+  const isMakeConnected = !!settings.makeWebhookUrl;
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">업로드 대기열</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">업로드 대기열</h2>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl font-medium transition-all flex items-center space-x-2"
+        >
+          <Plus size={18} />
+          <span>연동 설정</span>
+        </button>
+      </div>
 
+      {/* 연동 상태 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`p-4 rounded-xl border ${isNotionConnected ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${isNotionConnected ? 'bg-emerald-500/20' : 'bg-slate-800'}`}>
+              <Database size={20} className={isNotionConnected ? 'text-emerald-400' : 'text-slate-500'} />
+            </div>
+            <div>
+              <p className="font-medium">Notion 연동</p>
+              <p className="text-xs text-slate-500">
+                {isNotionConnected ? '연결됨 - 콘텐츠가 Notion DB에 저장됩니다' : '설정되지 않음'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className={`p-4 rounded-xl border ${isMakeConnected ? 'bg-blue-500/10 border-blue-500/30' : 'bg-slate-900/50 border-slate-700/50'}`}>
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${isMakeConnected ? 'bg-blue-500/20' : 'bg-slate-800'}`}>
+              <Webhook size={20} className={isMakeConnected ? 'text-blue-400' : 'text-slate-500'} />
+            </div>
+            <div>
+              <p className="font-medium">Make 웹훅</p>
+              <p className="text-xs text-slate-500">
+                {isMakeConnected ? '연결됨 - Buffer로 자동 발행됩니다' : '설정되지 않음'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 대기열 테이블 */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-wider">
@@ -52,14 +129,21 @@ export default function QueuePage() {
             ) : queue?.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                  현재 대기 중인 업로드 항목이 없습니다.
+                  <div className="space-y-2">
+                    <p>현재 대기 중인 업로드 항목이 없습니다.</p>
+                    {!isNotionConnected && (
+                      <p className="text-xs text-slate-600">
+                        Notion을 연동하면 AI 가공 결과가 여기에 표시됩니다.
+                      </p>
+                    )}
+                  </div>
                 </td>
               </tr>
             ) : (
               queue?.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-800/30 transition-colors group">
                   <td className="px-6 py-4 max-w-xs">
-                    <p className="text-sm line-clamp-1 text-slate-300 font-light">{item.content}</p>
+                    <p className="text-sm line-clamp-2 text-slate-300 font-light">{item.content}</p>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex -space-x-2">
@@ -106,12 +190,14 @@ export default function QueuePage() {
                       onClick={() => handleUpload(item.id)}
                       disabled={uploadNow.isPending}
                       className="bg-slate-950 hover:bg-emerald-600/20 text-emerald-500 p-2 rounded-lg transition-colors mr-2"
+                      title="지금 업로드"
                     >
                       <ChevronRight size={18} />
                     </button>
                     <button
                       onClick={() => handleDelete(item.id)}
                       className="text-slate-500 hover:text-red-500 p-2"
+                      title="삭제"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -122,6 +208,102 @@ export default function QueuePage() {
           </tbody>
         </table>
       </div>
+
+      {/* 설정 모달 */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-700/50 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-500/20 rounded-xl">
+                  <Settings size={20} className="text-blue-400" />
+                </div>
+                <h3 className="text-lg font-bold">연동 설정</h3>
+              </div>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Notion 설정 */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Database size={18} className="text-slate-400" />
+                  <h4 className="font-medium">Notion 연동</h4>
+                </div>
+                <p className="text-xs text-slate-500">
+                  AI로 생성된 콘텐츠를 Notion 데이터베이스에 저장합니다.{" "}
+                  <a
+                    href="https://www.notion.so/my-integrations"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline inline-flex items-center"
+                  >
+                    Integration 만들기 <ExternalLink size={12} className="ml-1" />
+                  </a>
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Notion API Key</label>
+                    <input
+                      type="password"
+                      value={settings.notionApiKey}
+                      onChange={(e) => setSettings({ ...settings, notionApiKey: e.target.value })}
+                      placeholder="secret_xxxxxxxxxxxxx"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Database ID</label>
+                    <input
+                      type="text"
+                      value={settings.notionDatabaseId}
+                      onChange={(e) => setSettings({ ...settings, notionDatabaseId: e.target.value })}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-slate-600 mt-1">
+                      데이터베이스 URL에서 추출: notion.so/[Database ID]?v=...
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Make 웹훅 설정 */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                <div className="flex items-center space-x-2">
+                  <Webhook size={18} className="text-slate-400" />
+                  <h4 className="font-medium">Make 웹훅 (선택사항)</h4>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Make 시나리오의 웹훅 URL을 입력하면 Buffer로 자동 발행됩니다.
+                </p>
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Webhook URL</label>
+                  <input
+                    type="url"
+                    value={settings.makeWebhookUrl}
+                    onChange={(e) => setSettings({ ...settings, makeWebhookUrl: e.target.value })}
+                    placeholder="https://hook.make.com/xxxxxxxxxxxxx"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={saveSettings}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all"
+              >
+                설정 저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

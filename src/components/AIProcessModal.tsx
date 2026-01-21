@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Sparkles, Loader2, Send, Save, Copy, Settings } from "lucide-react";
+import { X, Sparkles, Loader2, Send, Save, Copy, Settings, ExternalLink } from "lucide-react";
 import { CONTENT_TYPE_LABELS, DEFAULT_PROMPTS } from "@/lib/constants";
 import { useProcessStore } from "@/store";
 import type { ScrapedContent, Platform, ContentType } from "@/types";
+
+interface IntegrationSettings {
+  notionApiKey: string;
+  notionDatabaseId: string;
+  makeWebhookUrl: string;
+}
 
 interface AIProcessModalProps {
   isOpen: boolean;
@@ -134,30 +140,53 @@ export default function AIProcessModal({
       return;
     }
 
+    // 로컬 스토리지에서 연동 설정 가져오기
+    const savedSettings = localStorage.getItem("integration_settings");
+    const integrationSettings: IntegrationSettings | null = savedSettings
+      ? JSON.parse(savedSettings)
+      : null;
+
+    // Notion 연동 확인
+    if (!integrationSettings?.notionApiKey || !integrationSettings?.notionDatabaseId) {
+      alert("Notion 연동이 필요합니다. 업로드 대기열 페이지에서 설정해주세요.");
+      return;
+    }
+
     setIsAddingToQueue(true);
     try {
-      const response = await fetch("/api/queue", {
+      // Notion에 저장
+      const response = await fetch("/api/notion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          notionApiKey: integrationSettings.notionApiKey,
+          notionDatabaseId: integrationSettings.notionDatabaseId,
+          title: content.title || "AI 생성 콘텐츠",
           content: result,
-          target_platforms: selectedPlatforms,
+          contentType: CONTENT_TYPE_LABELS[contentType],
+          targetPlatforms: selectedPlatforms,
+          sourceUrl: content.original_url,
         }),
       });
 
-      if (response.ok) {
-        alert("대기열에 추가되었습니다!");
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         // 작업 완료 후 정리
         clearProcessingJob(content.id);
         onSuccess?.();
         onClose();
+
+        // Notion 페이지 열기
+        if (data.pageUrl) {
+          window.open(data.pageUrl, "_blank");
+        }
       } else {
-        const data = await response.json();
-        alert(data.error || "대기열 추가에 실패했습니다");
+        alert(data.error || "Notion 저장에 실패했습니다");
       }
     } catch (error) {
-      console.error("Queue error:", error);
-      alert("대기열 추가 중 오류가 발생했습니다");
+      console.error("Notion error:", error);
+      alert("Notion 저장 중 오류가 발생했습니다");
     } finally {
       setIsAddingToQueue(false);
     }
@@ -348,9 +377,9 @@ export default function AIProcessModal({
                 {isAddingToQueue ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
-                  <Send size={18} />
+                  <ExternalLink size={18} />
                 )}
-                <span>{isAddingToQueue ? "추가 중..." : "대기열에 추가"}</span>
+                <span>{isAddingToQueue ? "저장 중..." : "Notion에 저장"}</span>
               </button>
             </div>
           </div>
