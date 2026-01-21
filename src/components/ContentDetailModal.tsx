@@ -1,6 +1,6 @@
 "use client";
 
-import { X, FileText, MessageSquare, List } from "lucide-react";
+import { X, FileText, MessageSquare, List, Download, Loader2 } from "lucide-react";
 import { parseContent, type ParsedContent } from "@/lib/utils/parseContent";
 import { useEffect, useState } from "react";
 
@@ -12,6 +12,8 @@ interface ContentDetailModalProps {
   author?: string;
   platform?: string;
   isProcessed?: boolean;
+  contentId?: string;
+  onFetchContent?: (id: string) => Promise<void>;
 }
 
 export default function ContentDetailModal({
@@ -22,12 +24,16 @@ export default function ContentDetailModal({
   author,
   platform,
   isProcessed,
+  contentId,
+  onFetchContent,
 }: ContentDetailModalProps) {
   const [parsed, setParsed] = useState<ParsedContent | null>(null);
   const [activeTab, setActiveTab] = useState<"main" | "thread" | "comments">("main");
+  const [isFetching, setIsFetching] = useState(false);
 
-  // HTML 태그가 많으면 RSS 원본일 가능성 높음
+  // HTML 태그가 많거나 내용이 짧으면 RSS 원본일 가능성 높음
   const isRawHtml = content?.includes("<div") || content?.includes("<iframe");
+  const needsFetch = isRawHtml || (content && content.length < 200);
 
   useEffect(() => {
     if (isOpen && content) {
@@ -44,8 +50,8 @@ export default function ContentDetailModal({
   if (!isOpen || !parsed) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4">
+      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b border-slate-800 flex justify-between items-start">
           <div className="space-y-1 flex-1">
@@ -112,20 +118,38 @@ export default function ContentDetailModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* RSS 원본 경고 */}
-          {isRawHtml && !isProcessed && (
-            <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-              <p className="text-sm text-amber-400">
-                ⚠️ RSS 원본 데이터입니다. <strong>&quot;AI로 가공&quot;</strong> 버튼을 눌러야 실제 본문(자막, 포스트 내용)을 가져옵니다.
-              </p>
-            </div>
-          )}
-
           {activeTab === "main" && (
             <div className="prose prose-invert max-w-none">
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
-                {parsed.mainContent || "본문 없음"}
-              </div>
+              {/* 본문이 없거나 RSS 원본인 경우 본문 가져오기 버튼 표시 */}
+              {needsFetch && !isProcessed && contentId && onFetchContent ? (
+                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center space-y-4">
+                  <p className="text-slate-400">아직 본문을 가져오지 않았습니다.</p>
+                  <button
+                    onClick={async () => {
+                      setIsFetching(true);
+                      try {
+                        await onFetchContent(contentId);
+                        onClose();
+                      } finally {
+                        setIsFetching(false);
+                      }
+                    }}
+                    disabled={isFetching}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all mx-auto"
+                  >
+                    {isFetching ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Download size={18} />
+                    )}
+                    <span>{isFetching ? "가져오는 중..." : "본문 가져오기"}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
+                  {parsed.mainContent || "본문 없음"}
+                </div>
+              )}
             </div>
           )}
 

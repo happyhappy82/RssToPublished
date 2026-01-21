@@ -252,6 +252,10 @@ export default function ScrapedPage() {
           author={selectedContent.author || selectedContent.source?.account_name || undefined}
           platform={selectedContent.platform}
           isProcessed={selectedContent.is_processed}
+          contentId={selectedContent.id}
+          onFetchContent={async (id) => {
+            await handleFetchContent(id);
+          }}
         />
       )}
     </div>
