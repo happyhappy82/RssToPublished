@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
   Rss,
   Sparkles,
   ListOrdered,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,17 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth", { method: "DELETE" });
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   return (
     <aside className="w-72 bg-slate-900/60 backdrop-blur-xl border-r border-slate-700/50 flex flex-col hidden md:flex">
@@ -49,7 +61,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-6 border-t border-slate-800">
+      <div className="p-6 border-t border-slate-800 space-y-3">
         <div className="bg-slate-800 p-4 rounded-2xl flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white">
             관리
@@ -59,6 +71,13 @@ export function Sidebar() {
             <p className="text-[10px] text-slate-500">Free 요금제 사용 중</p>
           </div>
         </div>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-xl transition-all text-sm"
+        >
+          <LogOut size={16} />
+          <span>로그아웃</span>
+        </button>
       </div>
     </aside>
   );
