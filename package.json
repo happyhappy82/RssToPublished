@@ -24,8 +24,6 @@
     "react-dom": "19.2.3",
     "rss-parser": "^3.13.0",
     "tailwind-merge": "^2.6.0",
-    "three": "^0.124.0",
-    "vanta": "^0.5.24",
     "youtube-transcript": "^1.2.1",
     "zustand": "^5.0.2"
   },
