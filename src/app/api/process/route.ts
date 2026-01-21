@@ -173,7 +173,6 @@ export async function POST(request: NextRequest) {
     try {
       processedContent = await generateContent({
         originalContent,
-        contentType: content_type as ContentType,
         customPrompt: prompt_used,
         modelSettings: model_settings,
       });
