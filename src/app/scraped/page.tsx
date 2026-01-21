@@ -174,7 +174,9 @@ export default function ScrapedPage() {
                 </div>
                 <h4 className="text-lg font-bold">{item.title || "제목 없음"}</h4>
                 <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">
-                  {item.content}
+                  {item.content?.includes("<div") || item.content?.includes("<iframe") || item.content?.length < 100
+                    ? "본문을 가져와주세요"
+                    : item.content}
                 </p>
               </div>
               <div className="flex items-center space-x-3 w-full md:w-auto">
