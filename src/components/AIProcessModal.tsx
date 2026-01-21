@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { X, Sparkles, Loader2, Send, Save, Copy, Settings } from "lucide-react";
 import { CONTENT_TYPE_LABELS, DEFAULT_PROMPTS } from "@/lib/constants";
 import { useProcessStore } from "@/store";
@@ -25,14 +25,8 @@ export default function AIProcessModal({
   content,
   onSuccess,
 }: AIProcessModalProps) {
-  // 전역 상태에서 처리 작업 가져오기
-  const {
-    processingJobs,
-    startProcessingJob,
-    completeProcessingJob,
-    failProcessingJob,
-    clearProcessingJob,
-  } = useProcessStore();
+  // 전역 상태에서 처리 작업 가져오기 (상태 읽기용)
+  const { processingJobs, clearProcessingJob } = useProcessStore();
 
   const job = processingJobs[content.id];
   const isProcessing = job?.status === "processing";
@@ -69,9 +63,6 @@ export default function AIProcessModal({
   const [isAddingToQueue, setIsAddingToQueue] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["threads"]);
 
-  // AbortController ref for cleanup
-  const abortControllerRef = useRef<AbortController | null>(null);
-
   // 모달 열릴 때 기존 작업 결과 복원
   useEffect(() => {
     if (isOpen && job?.status === "completed" && job.result) {
@@ -92,48 +83,44 @@ export default function AIProcessModal({
     alert(`${CONTENT_TYPE_LABELS[contentType]} 유형의 프롬프트가 저장되었습니다.`);
   };
 
-  // 백그라운드 처리 시작
+  // 백그라운드 처리 시작 - 컴포넌트 언마운트와 무관하게 동작
   const handleProcess = async () => {
-    // 이미 처리 중이면 무시
-    if (isProcessing) return;
+    // 이미 처리 중이면 무시 (직접 스토어 확인)
+    const store = useProcessStore.getState();
+    if (store.processingJobs[content.id]?.status === "processing") return;
 
-    // 전역 상태에 처리 시작 기록
-    startProcessingJob(content.id);
+    // 전역 상태에 처리 시작 기록 (직접 스토어 접근)
+    useProcessStore.getState().startProcessingJob(content.id);
 
-    // AbortController 생성 (하지만 모달 닫아도 취소 안함)
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    // 필요한 값들을 클로저 외부 변수로 캡처
+    const contentId = content.id;
+    const requestBody = {
+      scraped_content_id: content.id,
+      content_type: contentType,
+      prompt_used: currentPrompt,
+      model_settings: modelSettings,
+    };
 
     try {
       const response = await fetch("/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scraped_content_id: content.id,
-          content_type: contentType,
-          prompt_used: currentPrompt,
-          model_settings: modelSettings,
-        }),
-        // signal 제거 - 모달 닫아도 취소 안함
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (response.ok && data.data?.processed_content) {
-        // 전역 상태에 결과 저장
-        completeProcessingJob(content.id, data.data.processed_content);
+        // 직접 스토어에 접근하여 결과 저장 (컴포넌트 언마운트와 무관)
+        useProcessStore.getState().completeProcessingJob(contentId, data.data.processed_content);
+        // 컴포넌트가 아직 마운트되어 있으면 로컬 상태도 업데이트
         setResult(data.data.processed_content);
       } else {
-        failProcessingJob(content.id, data.error || "AI 가공에 실패했습니다");
-        alert(data.error || "AI 가공에 실패했습니다");
+        useProcessStore.getState().failProcessingJob(contentId, data.error || "AI 가공에 실패했습니다");
       }
     } catch (error) {
-      // 취소된 경우가 아니면 에러 처리
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("Process error:", error);
-        failProcessingJob(content.id, "AI 가공 중 오류가 발생했습니다");
-        alert("AI 가공 중 오류가 발생했습니다");
-      }
+      console.error("Process error:", error);
+      useProcessStore.getState().failProcessingJob(contentId, "AI 가공 중 오류가 발생했습니다");
     }
   };
 
