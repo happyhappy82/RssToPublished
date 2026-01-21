@@ -36,10 +36,10 @@ function ProcessorContent() {
       return saved ? JSON.parse(saved) : {
         model: "gemini-3-flash-preview",
         temperature: 0.8,
-        maxTokens: 1024,
+        maxTokens: 65536, // 사실상 무제한
       };
     }
-    return { model: "gemini-3-flash-preview", temperature: 0.8, maxTokens: 1024 };
+    return { model: "gemini-3-flash-preview", temperature: 0.8, maxTokens: 65536 };
   });
 
   // 유형별 프롬프트 맵 (로컬 스토리지에서 불러오기)

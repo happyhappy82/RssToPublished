@@ -35,7 +35,7 @@ export async function generateContent({
 
   const model = modelSettings?.model || "gemini-3-flash-preview";
   const temperature = modelSettings?.temperature ?? 0.8;
-  const maxTokens = modelSettings?.maxTokens || 1024;
+  const maxTokens = modelSettings?.maxTokens || 65536; // 사실상 무제한
 
   // 커스텀 프롬프트(시스템 프롬프트) + 원본 소스
   const userPrompt = customPrompt
