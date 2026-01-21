@@ -14,7 +14,6 @@ const navItems = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
   { href: "/sources", label: "해외 소스 관리", icon: Users },
   { href: "/scraped", label: "수집 결과 확인", icon: Rss },
-  { href: "/process", label: "콘텐츠 AI 랩", icon: Sparkles },
   { href: "/queue", label: "업로드 대기열", icon: ListOrdered },
 ];
 
