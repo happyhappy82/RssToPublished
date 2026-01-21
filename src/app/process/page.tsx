@@ -127,7 +127,7 @@ function ProcessorContent() {
         body: JSON.stringify({
           scraped_content_id: selectedContent.id,
           content_type: contentType,
-          custom_prompt: currentPrompt,
+          prompt_used: currentPrompt,
           model_settings: modelSettings,
         }),
       });
