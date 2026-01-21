@@ -22,7 +22,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col hidden md:flex">
+    <aside className="w-72 bg-slate-900/60 backdrop-blur-xl border-r border-slate-700/50 flex flex-col hidden md:flex">
       <div className="p-8">
         <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent flex items-center space-x-2">
           <Sparkles size={24} className="text-blue-400" />

@@ -135,7 +135,7 @@ export default function SourcesPage() {
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-wider">
             <tr>
@@ -222,8 +222,8 @@ export default function SourcesPage() {
 
       {/* Add Source Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md p-4">
+          <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center">
               <h3 className="text-xl font-bold flex items-center space-x-2">
                 <Plus size={20} className="text-blue-500" />

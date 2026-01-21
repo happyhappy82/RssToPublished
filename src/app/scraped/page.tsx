@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Sparkles, Youtube, Twitter, Linkedin, MessageCircle, Eye, Trash2, Download, Loader2, Tag } from "lucide-react";
-import { useScrapedContents, useDeleteContent, useDeleteAllContents } from "@/hooks/useScrapedContent";
+import { ExternalLink, Sparkles, Youtube, Twitter, Linkedin, MessageCircle, Eye, Trash2, Download, Loader2, Check, Circle } from "lucide-react";
+import { useScrapedContents, useDeleteContent, useDeleteAllContents, useToggleUsed } from "@/hooks/useScrapedContent";
 import { useCategories } from "@/hooks/useSources";
 import ContentDetailModal from "@/components/ContentDetailModal";
 import type { Platform } from "@/types";
@@ -35,6 +35,7 @@ export default function ScrapedPage() {
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const deleteContent = useDeleteContent();
   const deleteAllContents = useDeleteAllContents();
+  const toggleUsed = useToggleUsed();
 
   // 본문 가져오기 (Apify로 실제 콘텐츠 fetch)
   const handleFetchContent = async (id: string) => {
@@ -129,11 +130,11 @@ export default function ScrapedPage() {
 
       <div className="grid grid-cols-1 gap-4">
         {isLoading ? (
-          <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center text-slate-500">
+          <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 p-12 rounded-2xl text-center text-slate-400">
             로딩 중...
           </div>
         ) : scraped.length === 0 ? (
-          <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center text-slate-500">
+          <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 p-12 rounded-2xl text-center text-slate-400">
             {filterCategory === "all"
               ? "아직 스크랩된 콘텐츠가 없습니다. 소스를 추가하고 스크래퍼가 실행될 때까지 기다려주세요."
               : `"${filterCategory}" 분야의 콘텐츠가 없습니다.`}
@@ -142,7 +143,9 @@ export default function ScrapedPage() {
           scraped.map((item) => (
             <div
               key={item.id}
-              className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-slate-600 transition-all flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 shadow-sm"
+              className={`bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl hover:border-slate-500/50 transition-all flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0 shadow-lg ${
+                item.is_used ? "opacity-40" : ""
+              }`}
             >
               <div className="space-y-1 max-w-2xl">
                 <div className="flex items-center space-x-2 mb-2">
@@ -175,6 +178,18 @@ export default function ScrapedPage() {
                 </p>
               </div>
               <div className="flex items-center space-x-3 w-full md:w-auto">
+                {/* 사용 여부 토글 */}
+                <button
+                  onClick={() => toggleUsed.mutate({ id: item.id, isUsed: !item.is_used })}
+                  className={`p-3 rounded-xl transition-all ${
+                    item.is_used
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  }`}
+                  title={item.is_used ? "사용 취소" : "사용함 표시"}
+                >
+                  {item.is_used ? <Check size={18} /> : <Circle size={18} />}
+                </button>
                 {item.original_url && (
                   <a
                     href={item.original_url}

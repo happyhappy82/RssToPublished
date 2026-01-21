@@ -92,11 +92,35 @@ async function deleteAllContents(): Promise<void> {
   }
 }
 
+async function toggleUsed(id: string, isUsed: boolean): Promise<ScrapedContent> {
+  const response = await fetch("/api/contents", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, is_used: isUsed }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to toggle used status");
+  }
+  const result = await response.json();
+  return result.data;
+}
+
 export function useDeleteAllContents() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: deleteAllContents,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scrapedContents"] });
+    },
+  });
+}
+
+export function useToggleUsed() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, isUsed }: { id: string; isUsed: boolean }) => toggleUsed(id, isUsed),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scrapedContents"] });
     },

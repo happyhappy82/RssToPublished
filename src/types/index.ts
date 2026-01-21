@@ -44,6 +44,7 @@ export interface ScrapedContent {
   published_at: string | null;
   scraped_at: string;
   is_processed: boolean;
+  is_used: boolean;  // 사용 여부
   category: string | null;  // 분야 (소스에서 상속)
   created_at: string;
   source?: Source;

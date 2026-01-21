@@ -81,6 +81,35 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH - 콘텐츠 사용 여부 토글
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, is_used } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    }
+
+    const supabase = createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("scraped_contents")
+      .update({ is_used: is_used })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ data });
+  } catch (error) {
+    console.error("PATCH /api/contents error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 // DELETE - 콘텐츠 삭제 (개별 또는 전체)
 export async function DELETE(request: NextRequest) {
   try {
