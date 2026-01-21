@@ -90,8 +90,8 @@ export async function generateContent({
 
   const systemPrompt = contentTypePrompts[contentType];
   const userPrompt = customPrompt
-    ? `${systemPrompt}\n\n추가 지시사항:\n${customPrompt}\n\n원본 콘텐츠:\n${originalContent}`
-    : `${systemPrompt}\n\n원본 콘텐츠:\n${originalContent}`;
+    ? `[작성 지침]\n${systemPrompt}\n\n${customPrompt}\n\n[원본 콘텐츠]\n${originalContent}`
+    : `[작성 지침]\n${systemPrompt}\n\n[원본 콘텐츠]\n${originalContent}`;
 
   const apiUrl = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
 
