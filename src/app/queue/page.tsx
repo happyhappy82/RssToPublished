@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, ChevronRight, Clock, Plus, Settings, X, ExternalLink, Database, Webhook, Eye, EyeOff } from "lucide-react";
+import { Trash2, ChevronRight, Clock, Plus, Settings, X, ExternalLink, Database, Webhook } from "lucide-react";
 import { useQueue, useDeleteQueueItem, useUploadNow } from "@/hooks/useQueue";
 
 interface IntegrationSettings {
@@ -25,8 +25,6 @@ export default function QueuePage() {
     makeWebhookUrl: "",
   });
 
-  // 임베드 표시 여부
-  const [showEmbed, setShowEmbed] = useState(true);
 
   // 로컬 스토리지에서 설정 불러오기
   useEffect(() => {
@@ -75,16 +73,6 @@ export default function QueuePage() {
   const isMakeConnected = !!settings.makeWebhookUrl;
   const hasEmbedUrl = !!settings.notionEmbedUrl;
 
-  // Notion 임베드 URL 변환 (공개 URL -> 임베드 URL)
-  const getEmbedUrl = (url: string) => {
-    if (!url) return "";
-    // notion.so URL을 임베드 가능한 형태로 변환
-    // 이미 임베드 URL이면 그대로 사용
-    if (url.includes("notion.site") || url.includes("notion.so")) {
-      return url;
-    }
-    return url;
-  };
 
   return (
     <div className="space-y-6">
@@ -130,43 +118,27 @@ export default function QueuePage() {
         </div>
       </div>
 
-      {/* Notion 데이터베이스 임베드 */}
+      {/* Notion 데이터베이스 바로가기 */}
       {hasEmbedUrl && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-slate-800 flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <Database size={18} className="text-emerald-400" />
-              <span className="font-medium">Notion 데이터베이스</span>
+        <a
+          href={settings.notionEmbedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-emerald-500/50 rounded-2xl p-5 transition-all hover:shadow-lg hover:shadow-emerald-500/10 group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-emerald-500/20 rounded-xl group-hover:bg-emerald-500/30 transition-colors">
+                <Database size={24} className="text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg group-hover:text-emerald-400 transition-colors">Notion 데이터베이스 열기</h3>
+                <p className="text-sm text-slate-500">콘텐츠 관리 및 발행 상태 확인</p>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <a
-                href={settings.notionEmbedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-400 hover:text-white flex items-center space-x-1"
-              >
-                <ExternalLink size={14} />
-                <span>새 탭에서 열기</span>
-              </a>
-              <button
-                onClick={() => setShowEmbed(!showEmbed)}
-                className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-              >
-                {showEmbed ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+            <ExternalLink size={20} className="text-slate-500 group-hover:text-emerald-400 transition-colors" />
           </div>
-          {showEmbed && (
-            <div className="relative" style={{ paddingBottom: "60%", height: 0 }}>
-              <iframe
-                src={getEmbedUrl(settings.notionEmbedUrl)}
-                className="absolute top-0 left-0 w-full h-full border-0"
-                style={{ minHeight: "500px" }}
-                allow="fullscreen"
-              />
-            </div>
-          )}
-        </div>
+        </a>
       )}
 
       {/* 대기열 테이블 */}
@@ -335,28 +307,24 @@ export default function QueuePage() {
                 </div>
               </div>
 
-              {/* Notion 임베드 설정 */}
+              {/* Notion 바로가기 설정 */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                 <div className="flex items-center space-x-2">
-                  <Eye size={18} className="text-slate-400" />
-                  <h4 className="font-medium">Notion 데이터베이스 임베드</h4>
+                  <ExternalLink size={18} className="text-slate-400" />
+                  <h4 className="font-medium">Notion 바로가기</h4>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Notion 데이터베이스를 이 페이지에서 바로 볼 수 있습니다.
-                  데이터베이스를 &quot;웹에 공개&quot;한 후 URL을 입력하세요.
+                  Notion 데이터베이스 링크를 등록하면 대기열 페이지에서 바로 열 수 있습니다.
                 </p>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Notion 공개 URL</label>
+                  <label className="block text-sm text-slate-400 mb-1">Notion 데이터베이스 URL</label>
                   <input
                     type="url"
                     value={settings.notionEmbedUrl}
                     onChange={(e) => setSettings({ ...settings, notionEmbedUrl: e.target.value })}
-                    placeholder="https://your-workspace.notion.site/..."
+                    placeholder="https://www.notion.so/your-database-..."
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-slate-600 mt-1">
-                    데이터베이스 → 공유 → 웹에 공개 → 링크 복사
-                  </p>
                 </div>
               </div>
 
