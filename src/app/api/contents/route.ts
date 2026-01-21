@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const platform = searchParams.get("platform");
     const sourceId = searchParams.get("source_id");
+    const category = searchParams.get("category");
     const isProcessed = searchParams.get("is_processed");
     const limit = parseInt(searchParams.get("limit") || "50");
 
@@ -22,6 +23,9 @@ export async function GET(request: NextRequest) {
     }
     if (sourceId) {
       query = query.eq("source_id", sourceId);
+    }
+    if (category && category !== "all") {
+      query = query.eq("category", category);
     }
     if (isProcessed !== null) {
       query = query.eq("is_processed", isProcessed === "true");

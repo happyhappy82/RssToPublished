@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Sparkles, Youtube, Twitter, Linkedin, MessageCircle, Eye, Trash2, Download, Loader2 } from "lucide-react";
+import { ExternalLink, Sparkles, Youtube, Twitter, Linkedin, MessageCircle, Eye, Trash2, Download, Loader2, Tag } from "lucide-react";
 import { useScrapedContents, useDeleteContent, useDeleteAllContents } from "@/hooks/useScrapedContent";
+import { useCategories } from "@/hooks/useSources";
 import ContentDetailModal from "@/components/ContentDetailModal";
 import type { Platform } from "@/types";
 
@@ -23,7 +24,12 @@ const PlatformIcon = ({ platform, size = 12 }: { platform: Platform; size?: numb
 };
 
 export default function ScrapedPage() {
-  const { data: scrapedData, isLoading, refetch } = useScrapedContents({ limit: 50 });
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const { data: categories } = useCategories();
+  const { data: scrapedData, isLoading, refetch } = useScrapedContents({
+    limit: 50,
+    category: filterCategory === "all" ? undefined : filterCategory,
+  });
   const scraped = scrapedData?.data || [];
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
@@ -96,16 +102,29 @@ export default function ScrapedPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">수집된 콘텐츠 목록</h2>
-        {scraped.length > 0 && (
-          <button
-            onClick={handleDeleteAll}
-            disabled={deleteAllContents.isPending}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-all flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        <div className="flex items-center space-x-3">
+          {/* 분야 필터 */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <Trash2 size={18} />
-            <span>{deleteAllContents.isPending ? "삭제 중..." : "전체 삭제"}</span>
-          </button>
-        )}
+            <option value="all">모든 분야</option>
+            {categories?.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          {scraped.length > 0 && (
+            <button
+              onClick={handleDeleteAll}
+              disabled={deleteAllContents.isPending}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-all flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash2 size={18} />
+              <span>{deleteAllContents.isPending ? "삭제 중..." : "전체 삭제"}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -115,7 +134,9 @@ export default function ScrapedPage() {
           </div>
         ) : scraped.length === 0 ? (
           <div className="bg-slate-900 border border-slate-800 p-12 rounded-2xl text-center text-slate-500">
-            아직 스크랩된 콘텐츠가 없습니다. 소스를 추가하고 스크래퍼가 실행될 때까지 기다려주세요.
+            {filterCategory === "all"
+              ? "아직 스크랩된 콘텐츠가 없습니다. 소스를 추가하고 스크래퍼가 실행될 때까지 기다려주세요."
+              : `"${filterCategory}" 분야의 콘텐츠가 없습니다.`}
           </div>
         ) : (
           scraped.map((item) => (
@@ -139,6 +160,14 @@ export default function ScrapedPage() {
                   <span className="text-xs text-slate-500">
                     {new Date(item.created_at).toLocaleDateString()}
                   </span>
+                  {(item.category || item.source?.category) && (
+                    <>
+                      <span className="text-xs text-slate-500">•</span>
+                      <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded text-xs font-medium">
+                        {item.category || item.source?.category}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <h4 className="text-lg font-bold">{item.title || "제목 없음"}</h4>
                 <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">

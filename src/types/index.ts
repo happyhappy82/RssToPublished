@@ -23,6 +23,7 @@ export interface Source {
   account_url: string;
   nickname: string | null;
   rss_url: string | null;
+  category: string | null;  // 분야 (AI, 경제, 마케팅 등)
   is_active: boolean;
   last_scraped_at: string | null;
   created_at: string;
@@ -43,6 +44,7 @@ export interface ScrapedContent {
   published_at: string | null;
   scraped_at: string;
   is_processed: boolean;
+  category: string | null;  // 분야 (소스에서 상속)
   created_at: string;
   source?: Source;
 }

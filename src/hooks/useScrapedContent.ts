@@ -6,6 +6,7 @@ import type { ScrapedContent, Platform } from "@/types";
 interface FetchContentsParams {
   platform?: Platform;
   sourceId?: string;
+  category?: string;
   page?: number;
   limit?: number;
 }
@@ -32,6 +33,7 @@ async function fetchContents(params: FetchContentsParams): Promise<ContentsResul
 
   if (params.platform) searchParams.set("platform", params.platform);
   if (params.sourceId) searchParams.set("source_id", params.sourceId);
+  if (params.category) searchParams.set("category", params.category);
   if (params.page) searchParams.set("page", params.page.toString());
   if (params.limit) searchParams.set("limit", params.limit.toString());
 

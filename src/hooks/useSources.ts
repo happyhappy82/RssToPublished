@@ -9,6 +9,7 @@ interface CreateSourceInput {
   rss_url: string;
   account_url?: string;
   nickname?: string;
+  category?: string;
 }
 
 interface SourcesResponse {
@@ -113,4 +114,31 @@ export function useScrapeSource() {
       queryClient.invalidateQueries({ queryKey: ["scrapedContents"] });
     },
   });
+}
+
+// 카테고리 목록 가져오기
+async function fetchCategories(): Promise<string[]> {
+  const response = await fetch("/api/sources?categories_only=true");
+  if (!response.ok) {
+    throw new Error("Failed to fetch categories");
+  }
+  const result = await response.json();
+  return result.data || [];
+}
+
+export function useCategories() {
+  return useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
+  });
+}
+
+export function useSourcesByCategory(category?: string) {
+  const { data: sources, ...rest } = useSources();
+
+  const filteredSources = category && category !== "all"
+    ? sources?.filter((s) => s.category === category)
+    : sources;
+
+  return { data: filteredSources, ...rest };
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, RefreshCcw, X, CheckCircle2, Loader2, Youtube, Twitter, Linkedin, MessageCircle, Globe, Rss } from "lucide-react";
-import { useSources, useCreateSource, useDeleteSource, useScrapeSource } from "@/hooks/useSources";
+import { Plus, Trash2, RefreshCcw, X, CheckCircle2, Loader2, Youtube, Twitter, Linkedin, MessageCircle, Globe, Rss, Tag } from "lucide-react";
+import { useSources, useCreateSource, useDeleteSource, useScrapeSource, useCategories } from "@/hooks/useSources";
 import type { Platform } from "@/types";
 
 const PlatformIcon = ({ platform, size = 14 }: { platform: Platform | "auto"; size?: number }) => {
@@ -27,6 +27,7 @@ const PlatformIcon = ({ platform, size = 14 }: { platform: Platform | "auto"; si
 
 export default function SourcesPage() {
   const { data: sources, isLoading } = useSources();
+  const { data: categories } = useCategories();
   const createSource = useCreateSource();
   const deleteSource = useDeleteSource();
   const scrapeSource = useScrapeSource();
@@ -35,7 +36,11 @@ export default function SourcesPage() {
   const [newSource, setNewSource] = useState({
     account_name: "",
     rss_url: "",
+    category: "",
   });
+  const [newCategory, setNewCategory] = useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
 
   const handleAddSource = async () => {
     if (!newSource.account_name || !newSource.rss_url) {
@@ -43,11 +48,15 @@ export default function SourcesPage() {
       return;
     }
 
+    // 새 카테고리 생성 중이면 새 카테고리 사용
+    const categoryToUse = isCreatingCategory ? newCategory : newSource.category;
+
     try {
       // platform은 "website"로 기본 설정 (실제 플랫폼은 수집 시 개별 URL에서 자동 감지)
       const created = await createSource.mutateAsync({
         ...newSource,
         platform: "website",
+        category: categoryToUse || undefined,
       });
       // 소스 생성 후 바로 수집 시작
       if (created?.id) {
@@ -57,11 +66,19 @@ export default function SourcesPage() {
       setNewSource({
         account_name: "",
         rss_url: "",
+        category: "",
       });
+      setNewCategory("");
+      setIsCreatingCategory(false);
     } catch {
       alert("소스 추가에 실패했습니다");
     }
   };
+
+  // 필터링된 소스 목록
+  const filteredSources = filterCategory === "all"
+    ? sources
+    : sources?.filter(s => s.category === filterCategory);
 
   const handleScrape = async (sourceId?: string) => {
     try {
@@ -95,13 +112,26 @@ export default function SourcesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">해외 소스 관리</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl flex items-center space-x-2 transition-all shadow-lg shadow-blue-900/20"
-        >
-          <Plus size={18} />
-          <span>계정 추가</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          {/* 분야 필터 */}
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">모든 분야</option>
+            {categories?.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl flex items-center space-x-2 transition-all shadow-lg shadow-blue-900/20"
+          >
+            <Plus size={18} />
+            <span>계정 추가</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
@@ -110,6 +140,7 @@ export default function SourcesPage() {
             <tr>
               <th className="px-6 py-4">플랫폼</th>
               <th className="px-6 py-4">계정명</th>
+              <th className="px-6 py-4">분야</th>
               <th className="px-6 py-4">상태</th>
               <th className="px-6 py-4">최근 수집</th>
               <th className="px-6 py-4 text-right">관리</th>
@@ -118,18 +149,20 @@ export default function SourcesPage() {
           <tbody className="divide-y divide-slate-800">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                   로딩 중...
                 </td>
               </tr>
-            ) : sources?.length === 0 ? (
+            ) : filteredSources?.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                  아직 추가된 소스가 없습니다. &quot;계정 추가&quot;를 클릭하여 시작하세요.
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  {filterCategory === "all"
+                    ? "아직 추가된 소스가 없습니다. \"계정 추가\"를 클릭하여 시작하세요."
+                    : `"${filterCategory}" 분야의 소스가 없습니다.`}
                 </td>
               </tr>
             ) : (
-              sources?.map((s) => (
+              filteredSources?.map((s) => (
                 <tr key={s.id} className="hover:bg-slate-800/30 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
@@ -143,6 +176,15 @@ export default function SourcesPage() {
                   </td>
                   <td className="px-6 py-4 font-medium">
                     {s.nickname || s.account_name}
+                  </td>
+                  <td className="px-6 py-4">
+                    {s.category ? (
+                      <span className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium">
+                        {s.category}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 text-xs">미지정</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <span className="flex items-center space-x-1.5 text-xs text-emerald-500">
@@ -232,6 +274,60 @@ export default function SourcesPage() {
                 <p className="text-xs text-slate-600 mt-1">
                   RSS.app에서 생성한 피드 URL을 입력하세요
                 </p>
+              </div>
+
+              {/* 분야 선택/생성 */}
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                  분야
+                </label>
+                {!isCreatingCategory ? (
+                  <div className="space-y-2">
+                    <select
+                      value={newSource.category}
+                      onChange={(e) => {
+                        if (e.target.value === "__new__") {
+                          setIsCreatingCategory(true);
+                        } else {
+                          setNewSource({ ...newSource, category: e.target.value });
+                        }
+                      }}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    >
+                      <option value="">분야 선택 (선택사항)</option>
+                      {categories?.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      <option value="__new__">+ 새 분야 만들기</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="새 분야 이름 (예: AI, 경제, 마케팅)"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCreatingCategory(false);
+                          setNewCategory("");
+                        }}
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 text-sm"
+                      >
+                        취소
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      새 분야를 입력하면 자동으로 생성됩니다
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* 플랫폼 자동 감지 안내 */}
