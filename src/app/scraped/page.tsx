@@ -33,6 +33,9 @@ export default function ScrapedPage() {
   });
   const scrapedRaw = scrapedData?.data || [];
 
+  // 글로벌 상태에서 처리 중인 작업들 가져오기 (정렬에서 사용하므로 먼저 선언)
+  const { processingJobs } = useProcessStore();
+
   // 정렬: 완료된 것 > 처리 중 > 일반 > 사용됨(가려진 것)
   const scraped = [...scrapedRaw].sort((a, b) => {
     const aCompleted = processingJobs[a.id]?.status === "completed";
@@ -56,9 +59,6 @@ export default function ScrapedPage() {
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
   const [aiProcessContent, setAiProcessContent] = useState<ScrapedContent | null>(null);
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
-
-  // 글로벌 상태에서 처리 중인 작업들 가져오기
-  const { processingJobs } = useProcessStore();
   const deleteContent = useDeleteContent();
   const deleteAllContents = useDeleteAllContents();
   const toggleUsed = useToggleUsed();
