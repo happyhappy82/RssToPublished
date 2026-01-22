@@ -101,27 +101,22 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Status 속성이 있으면 추가 (다양한 이름 지원) - 실제 옵션에서 첫 번째 사용
+    // Status 속성이 있으면 추가 - "Review" 사용
     const statusNames = ["status", "상태", "진행상태", "state"];
     for (const statusName of statusNames) {
       const prop = propMap[statusName];
-      const fullProp = properties[prop?.name] as NotionProperty | undefined;
 
-      if (prop && prop.type === "status" && fullProp?.status?.options?.length) {
-        // 실제 Status 옵션 중 첫 번째 사용
-        const firstOption = fullProp.status.options[0].name;
+      if (prop && prop.type === "status") {
         pageProperties[prop.name] = {
           status: {
-            name: firstOption,
+            name: "Review",
           },
         };
         break;
-      } else if (prop && prop.type === "select" && fullProp?.select?.options?.length) {
-        // 실제 Select 옵션 중 첫 번째 사용
-        const firstOption = fullProp.select.options[0].name;
+      } else if (prop && prop.type === "select") {
         pageProperties[prop.name] = {
           select: {
-            name: firstOption,
+            name: "Review",
           },
         };
         break;

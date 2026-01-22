@@ -19,6 +19,7 @@ interface GeminiResponse {
         text: string;
       }[];
     };
+    finishReason?: string;
   }[];
 }
 
@@ -75,11 +76,19 @@ export async function generateContent({
   }
 
   const data: GeminiResponse = await response.json();
-  console.log("Gemini API response received, candidates:", data.candidates?.length || 0);
+  const finishReason = data.candidates?.[0]?.finishReason;
+  console.log("Gemini API response received, candidates:", data.candidates?.length || 0, "finishReason:", finishReason);
 
   if (!data.candidates || data.candidates.length === 0) {
     console.error("Gemini returned no candidates:", JSON.stringify(data));
     throw new Error("No response from Gemini - empty candidates");
+  }
+
+  // finishReason 체크 - MAX_TOKENS면 잘린 것
+  if (finishReason === "MAX_TOKENS") {
+    console.warn("Gemini response was truncated due to MAX_TOKENS limit");
+  } else if (finishReason !== "STOP") {
+    console.warn("Gemini finishReason:", finishReason);
   }
 
   return data.candidates[0].content.parts[0].text;
