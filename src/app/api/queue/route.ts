@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { processed_content_id, content, target_platforms, scheduled_at } = body;
+    const { processed_content_id, content, target_platforms, scheduled_at, title, content_type, source_url } = body;
 
-    if (!content || !target_platforms) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!content) {
+      return NextResponse.json({ error: "content가 필요합니다" }, { status: 400 });
     }
 
     const supabase = createServerSupabaseClient();
@@ -58,7 +58,10 @@ export async function POST(request: NextRequest) {
       .insert({
         processed_content_id,
         content,
-        target_platforms,
+        title,
+        content_type,
+        source_url,
+        target_platforms: target_platforms || [],
         scheduled_at,
         status: scheduled_at ? "scheduled" : "pending",
         position: nextPosition,

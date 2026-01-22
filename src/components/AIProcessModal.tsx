@@ -320,21 +320,9 @@ export default function AIProcessModal({
     }
   };
 
-  const handleSaveToNotion = async () => {
+  const handleAddToQueue = async () => {
     if (!result.trim()) {
       alert("먼저 AI로 콘텐츠를 생성해주세요");
-      return;
-    }
-
-    // 로컬 스토리지에서 연동 설정 가져오기
-    const savedSettings = localStorage.getItem("integration_settings");
-    const integrationSettings: IntegrationSettings | null = savedSettings
-      ? JSON.parse(savedSettings)
-      : null;
-
-    // Notion 연동 확인
-    if (!integrationSettings?.notionApiKey || !integrationSettings?.notionDatabaseId) {
-      alert("Notion 연동이 필요합니다. 업로드 대기열 페이지에서 설정해주세요.");
       return;
     }
 
@@ -342,39 +330,33 @@ export default function AIProcessModal({
 
     setIsSavingToNotion(true);
     try {
-      // Notion에 저장
-      const response = await fetch("/api/notion", {
+      // 대기열에 추가
+      const response = await fetch("/api/queue", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          notionApiKey: integrationSettings.notionApiKey,
-          notionDatabaseId: integrationSettings.notionDatabaseId,
-          title: content.title || "AI 생성 콘텐츠",
           content: result,
-          contentType: selectedType?.label || "기타",
-          targetPlatforms: [],
-          sourceUrl: content.original_url,
+          title: content.title || "AI 생성 콘텐츠",
+          content_type: selectedType?.label || "기타",
+          source_url: content.original_url,
+          target_platforms: [],
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && data.data) {
         // 작업 완료 후 정리
         clearProcessingJob(content.id);
         onSuccess?.();
+        alert("대기열에 추가되었습니다. '업로드 대기열' 페이지에서 일괄 저장하세요.");
         onClose();
-
-        // Notion 페이지 열기
-        if (data.pageUrl) {
-          window.open(data.pageUrl, "_blank");
-        }
       } else {
-        alert(data.error || "Notion 저장에 실패했습니다");
+        alert(data.error || "대기열 추가에 실패했습니다");
       }
     } catch (error) {
-      console.error("Notion error:", error);
-      alert("Notion 저장 중 오류가 발생했습니다");
+      console.error("Queue error:", error);
+      alert("대기열 추가 중 오류가 발생했습니다");
     } finally {
       setIsSavingToNotion(false);
     }
@@ -555,19 +537,19 @@ export default function AIProcessModal({
               className="w-full h-[calc(100%-180px)] min-h-[300px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-200 leading-relaxed"
             />
 
-            {/* Notion 저장 */}
+            {/* 대기열에 추가 */}
             <div className="p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
               <button
-                onClick={handleSaveToNotion}
+                onClick={handleAddToQueue}
                 disabled={isSavingToNotion || !result.trim() || isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white py-3 rounded-xl font-medium flex items-center justify-center space-x-2 transition-all"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white py-3 rounded-xl font-medium flex items-center justify-center space-x-2 transition-all"
               >
                 {isSavingToNotion ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
                   <ExternalLink size={18} />
                 )}
-                <span>{isSavingToNotion ? "저장 중..." : "Notion에 저장"}</span>
+                <span>{isSavingToNotion ? "추가 중..." : "대기열에 추가"}</span>
               </button>
             </div>
           </div>

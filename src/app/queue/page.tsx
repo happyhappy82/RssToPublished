@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Trash2, ChevronRight, Clock, Plus, Settings, X, ExternalLink, Database, Webhook } from "lucide-react";
-import { useQueue, useDeleteQueueItem, useUploadNow } from "@/hooks/useQueue";
+import { Trash2, Clock, Settings, X, ExternalLink, Database, Webhook, Calendar, Upload, CheckSquare, Square, Loader2 } from "lucide-react";
+import { useQueue, useDeleteQueueItem, useBatchSetDates, useBatchUploadToNotion } from "@/hooks/useQueue";
 
 interface IntegrationSettings {
   notionApiKey: string;
@@ -12,12 +12,17 @@ interface IntegrationSettings {
 }
 
 export default function QueuePage() {
-  const { data: queue, isLoading } = useQueue();
+  const { data: queue, isLoading, refetch } = useQueue();
   const deleteItem = useDeleteQueueItem();
-  const uploadNow = useUploadNow();
+  const batchSetDates = useBatchSetDates();
+  const batchUploadToNotion = useBatchUploadToNotion();
+
+  // 선택된 항목 ID
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 설정 모달 상태
   const [showSettings, setShowSettings] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
   const [settings, setSettings] = useState<IntegrationSettings>({
     notionApiKey: "",
     notionDatabaseId: "",
@@ -25,6 +30,10 @@ export default function QueuePage() {
     makeWebhookUrl: "",
   });
 
+  // 날짜 설정 옵션
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customStartTime, setCustomStartTime] = useState("09:00");
+  const [customInterval, setCustomInterval] = useState(24);
 
   // 로컬 스토리지에서 설정 불러오기
   useEffect(() => {
@@ -39,6 +48,11 @@ export default function QueuePage() {
           makeWebhookUrl: parsed.makeWebhookUrl || "",
         });
       }
+
+      // 내일 날짜를 기본값으로 설정
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setCustomStartDate(tomorrow.toISOString().split("T")[0]);
     }
   }, []);
 
@@ -47,6 +61,112 @@ export default function QueuePage() {
     localStorage.setItem("integration_settings", JSON.stringify(settings));
     alert("설정이 저장되었습니다.");
     setShowSettings(false);
+  };
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    const pendingItems = queue?.filter(item => item.status === "pending" || item.status === "scheduled") || [];
+    if (selectedIds.size === pendingItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingItems.map(item => item.id)));
+    }
+  };
+
+  // 단일 항목 선택/해제
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  // 빠른 날짜 설정 (내일 오전 9시부터 1일 간격)
+  const handleQuickDateSet = async () => {
+    if (selectedIds.size === 0) {
+      alert("먼저 항목을 선택해주세요");
+      return;
+    }
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+
+    try {
+      await batchSetDates.mutateAsync({
+        ids: Array.from(selectedIds),
+        startDate: tomorrow.toISOString(),
+        intervalHours: 24,
+      });
+      alert(`${selectedIds.size}개 항목의 날짜가 설정되었습니다.`);
+      setSelectedIds(new Set());
+      refetch();
+    } catch {
+      alert("날짜 설정에 실패했습니다");
+    }
+  };
+
+  // 커스텀 날짜 설정
+  const handleCustomDateSet = async () => {
+    if (selectedIds.size === 0) {
+      alert("먼저 항목을 선택해주세요");
+      return;
+    }
+
+    if (!customStartDate) {
+      alert("시작 날짜를 선택해주세요");
+      return;
+    }
+
+    const startDateTime = new Date(`${customStartDate}T${customStartTime}:00`);
+
+    try {
+      await batchSetDates.mutateAsync({
+        ids: Array.from(selectedIds),
+        startDate: startDateTime.toISOString(),
+        intervalHours: customInterval,
+      });
+      alert(`${selectedIds.size}개 항목의 날짜가 설정되었습니다.`);
+      setSelectedIds(new Set());
+      setShowDateModal(false);
+      refetch();
+    } catch {
+      alert("날짜 설정에 실패했습니다");
+    }
+  };
+
+  // 일괄 Notion 저장
+  const handleBatchNotionUpload = async () => {
+    if (selectedIds.size === 0) {
+      alert("먼저 항목을 선택해주세요");
+      return;
+    }
+
+    if (!settings.notionApiKey || !settings.notionDatabaseId) {
+      alert("Notion 연동 설정이 필요합니다.");
+      setShowSettings(true);
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedIds.size}개 항목을 Notion에 저장하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const result = await batchUploadToNotion.mutateAsync({
+        ids: Array.from(selectedIds),
+        notionApiKey: settings.notionApiKey,
+        notionDatabaseId: settings.notionDatabaseId,
+      });
+      alert(`${result.uploaded}개 저장 완료, ${result.failed}개 실패`);
+      setSelectedIds(new Set());
+      refetch();
+    } catch {
+      alert("Notion 저장에 실패했습니다");
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -59,20 +179,14 @@ export default function QueuePage() {
     }
   };
 
-  const handleUpload = async (id: string) => {
-    try {
-      await uploadNow.mutateAsync(id);
-      alert("Buffer를 통해 업로드되었습니다!");
-    } catch {
-      alert("업로드에 실패했습니다. Buffer 설정을 확인해주세요.");
-    }
-  };
-
   // Notion 연동 여부 확인
   const isNotionConnected = settings.notionApiKey && settings.notionDatabaseId;
   const isMakeConnected = !!settings.makeWebhookUrl;
   const hasEmbedUrl = !!settings.notionEmbedUrl;
 
+  // pending/scheduled 항목만 선택 가능
+  const selectableItems = queue?.filter(item => item.status === "pending" || item.status === "scheduled") || [];
+  const isAllSelected = selectableItems.length > 0 && selectedIds.size === selectableItems.length;
 
   return (
     <div className="space-y-6">
@@ -82,7 +196,7 @@ export default function QueuePage() {
           onClick={() => setShowSettings(true)}
           className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl font-medium transition-all flex items-center space-x-2"
         >
-          <Plus size={18} />
+          <Settings size={18} />
           <span>연동 설정</span>
         </button>
       </div>
@@ -141,107 +255,243 @@ export default function QueuePage() {
         </a>
       )}
 
+      {/* 액션 버튼 영역 */}
+      {selectableItems.length > 0 && (
+        <div className="flex flex-wrap gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
+          <span className="text-sm text-slate-400 self-center">
+            {selectedIds.size > 0 ? `${selectedIds.size}개 선택됨` : "항목을 선택하세요"}
+          </span>
+          <div className="flex-1" />
+
+          {/* 빠른 날짜 설정 */}
+          <button
+            onClick={handleQuickDateSet}
+            disabled={selectedIds.size === 0 || batchSetDates.isPending}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 text-white rounded-xl font-medium transition-all flex items-center space-x-2 text-sm"
+          >
+            <Calendar size={16} />
+            <span>내일부터 1일 간격</span>
+          </button>
+
+          {/* 커스텀 날짜 설정 */}
+          <button
+            onClick={() => setShowDateModal(true)}
+            disabled={selectedIds.size === 0}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-white rounded-xl font-medium transition-all flex items-center space-x-2 text-sm"
+          >
+            <Settings size={16} />
+            <span>날짜 직접 설정</span>
+          </button>
+
+          {/* 일괄 Notion 저장 */}
+          <button
+            onClick={handleBatchNotionUpload}
+            disabled={selectedIds.size === 0 || batchUploadToNotion.isPending || !isNotionConnected}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white rounded-xl font-medium transition-all flex items-center space-x-2 text-sm"
+          >
+            {batchUploadToNotion.isPending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Upload size={16} />
+            )}
+            <span>일괄 Notion 저장</span>
+          </button>
+        </div>
+      )}
+
       {/* 대기열 테이블 */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-slate-950/50 text-slate-400 text-xs uppercase tracking-wider">
             <tr>
-              <th className="px-6 py-4">콘텐츠 내용</th>
-              <th className="px-6 py-4">타겟 플랫폼</th>
-              <th className="px-6 py-4">상태</th>
-              <th className="px-6 py-4">등록일</th>
-              <th className="px-6 py-4 text-right">관리</th>
+              <th className="px-4 py-4 w-12">
+                <button onClick={toggleSelectAll} className="p-1 hover:bg-slate-800 rounded">
+                  {isAllSelected ? <CheckSquare size={18} className="text-emerald-500" /> : <Square size={18} />}
+                </button>
+              </th>
+              <th className="px-4 py-4">콘텐츠</th>
+              <th className="px-4 py-4">유형</th>
+              <th className="px-4 py-4">예약 날짜</th>
+              <th className="px-4 py-4">상태</th>
+              <th className="px-4 py-4 text-right">관리</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                   로딩 중...
                 </td>
               </tr>
             ) : queue?.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                   <div className="space-y-2">
                     <p>현재 대기 중인 업로드 항목이 없습니다.</p>
-                    {!isNotionConnected && (
-                      <p className="text-xs text-slate-600">
-                        Notion을 연동하면 AI 가공 결과가 여기에 표시됩니다.
-                      </p>
-                    )}
+                    <p className="text-xs text-slate-600">
+                      AI 가공 후 &quot;대기열에 추가&quot; 버튼을 눌러 항목을 추가하세요.
+                    </p>
                   </div>
                 </td>
               </tr>
             ) : (
-              queue?.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-800/30 transition-colors group">
-                  <td className="px-6 py-4 max-w-xs">
-                    <p className="text-sm line-clamp-2 text-slate-300 font-light">{item.content}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex -space-x-2">
-                      {item.target_platforms.map((p) => (
-                        <div
-                          key={p}
-                          className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[8px] font-bold text-slate-300"
-                          title={p}
-                        >
-                          {p[0].toUpperCase()}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center w-fit space-x-1 ${
-                        item.status === "pending"
-                          ? "bg-blue-500/10 text-blue-500"
-                          : item.status === "uploaded"
-                          ? "bg-emerald-500/10 text-emerald-500"
-                          : item.status === "failed"
-                          ? "bg-red-500/10 text-red-500"
-                          : "bg-purple-500/10 text-purple-500"
-                      }`}
-                    >
-                      <Clock size={12} />
-                      <span>
-                        {item.status === "pending"
-                          ? "대기"
-                          : item.status === "uploaded"
-                          ? "완료"
-                          : item.status === "failed"
-                          ? "실패"
-                          : "예약됨"}
+              queue?.map((item) => {
+                const isSelectable = item.status === "pending" || item.status === "scheduled";
+                const isSelected = selectedIds.has(item.id);
+
+                return (
+                  <tr key={item.id} className={`hover:bg-slate-800/30 transition-colors ${isSelected ? 'bg-emerald-500/5' : ''}`}>
+                    <td className="px-4 py-4">
+                      {isSelectable ? (
+                        <button onClick={() => toggleSelect(item.id)} className="p-1 hover:bg-slate-800 rounded">
+                          {isSelected ? <CheckSquare size={18} className="text-emerald-500" /> : <Square size={18} className="text-slate-500" />}
+                        </button>
+                      ) : (
+                        <span className="text-slate-700">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 max-w-xs">
+                      <p className="text-sm font-medium text-slate-200 truncate">{item.title || "제목 없음"}</p>
+                      <p className="text-xs text-slate-500 line-clamp-1">{item.content}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="px-2 py-1 bg-blue-500/10 text-blue-400 rounded text-xs font-medium">
+                        {item.content_type || "기타"}
                       </span>
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-500 font-mono">
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleUpload(item.id)}
-                      disabled={uploadNow.isPending}
-                      className="bg-slate-950 hover:bg-emerald-600/20 text-emerald-500 p-2 rounded-lg transition-colors mr-2"
-                      title="지금 업로드"
-                    >
-                      <ChevronRight size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="text-slate-500 hover:text-red-500 p-2"
-                      title="삭제"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="px-4 py-4 text-sm">
+                      {item.scheduled_at ? (
+                        <div className="text-slate-300">
+                          <p>{new Date(item.scheduled_at).toLocaleDateString("ko-KR")}</p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(item.scheduled_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-slate-600">미설정</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center w-fit space-x-1 ${
+                          item.status === "pending"
+                            ? "bg-blue-500/10 text-blue-500"
+                            : item.status === "uploaded"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : item.status === "failed"
+                            ? "bg-red-500/10 text-red-500"
+                            : "bg-purple-500/10 text-purple-500"
+                        }`}
+                      >
+                        <Clock size={12} />
+                        <span>
+                          {item.status === "pending"
+                            ? "대기"
+                            : item.status === "uploaded"
+                            ? "완료"
+                            : item.status === "failed"
+                            ? "실패"
+                            : "예약됨"}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="text-slate-500 hover:text-red-500 p-2"
+                        title="삭제"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* 날짜 설정 모달 */}
+      {showDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-700/50 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-500/20 rounded-xl">
+                  <Calendar size={20} className="text-purple-400" />
+                </div>
+                <h3 className="text-lg font-bold">날짜 직접 설정</h3>
+              </div>
+              <button
+                onClick={() => setShowDateModal(false)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <p className="text-sm text-slate-400">
+                선택한 {selectedIds.size}개 항목에 순차적으로 날짜가 설정됩니다.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">시작 날짜</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">시작 시간</label>
+                  <select
+                    value={customStartTime}
+                    onChange={(e) => setCustomStartTime(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="09:00">오전 9:00</option>
+                    <option value="12:00">오후 12:00</option>
+                    <option value="18:00">오후 6:00</option>
+                    <option value="21:00">오후 9:00</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-2">간격</label>
+                  <select
+                    value={customInterval}
+                    onChange={(e) => setCustomInterval(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value={6}>6시간</option>
+                    <option value={12}>12시간</option>
+                    <option value={24}>1일 (24시간)</option>
+                    <option value={48}>2일 (48시간)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCustomDateSet}
+                disabled={batchSetDates.isPending}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 text-white rounded-xl font-bold transition-all flex items-center justify-center space-x-2"
+              >
+                {batchSetDates.isPending ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Calendar size={18} />
+                )}
+                <span>날짜 설정</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 설정 모달 */}
       {showSettings && (

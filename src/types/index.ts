@@ -78,6 +78,9 @@ export interface QueueItem {
   id: string;
   processed_content_id: string | null;
   content: string;
+  title: string | null;  // Notion 저장용 제목
+  content_type: string | null;  // 콘텐츠 유형 (한탄글, 인사이트 등)
+  source_url: string | null;  // 원본 URL
   target_platforms: Platform[];
   status: UploadStatus;
   scheduled_at: string | null;

@@ -74,6 +74,42 @@ async function uploadNow(id: string): Promise<QueueItem> {
   return response.json();
 }
 
+interface BatchSetDatesInput {
+  ids: string[];
+  startDate: string;
+  intervalHours?: number;
+}
+
+interface BatchNotionInput {
+  ids: string[];
+  notionApiKey: string;
+  notionDatabaseId: string;
+}
+
+async function batchSetDates(input: BatchSetDatesInput): Promise<{ success: boolean; updated: number }> {
+  const response = await fetch("/api/queue/batch-dates", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to set dates");
+  }
+  return response.json();
+}
+
+async function batchUploadToNotion(input: BatchNotionInput): Promise<{ success: boolean; uploaded: number; failed: number }> {
+  const response = await fetch("/api/queue/batch-notion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to upload to Notion");
+  }
+  return response.json();
+}
+
 export function useQueue(status?: UploadStatus) {
   return useQuery({
     queryKey: ["queue", status],
@@ -119,6 +155,28 @@ export function useUploadNow() {
 
   return useMutation({
     mutationFn: uploadNow,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
+}
+
+export function useBatchSetDates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: batchSetDates,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["queue"] });
+    },
+  });
+}
+
+export function useBatchUploadToNotion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: batchUploadToNotion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["queue"] });
     },
