@@ -454,25 +454,32 @@ export default function QueuePage() {
                     onChange={(e) => setCustomStartTime(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="09:00">오전 9:00</option>
-                    <option value="12:00">오후 12:00</option>
-                    <option value="18:00">오후 6:00</option>
-                    <option value="21:00">오후 9:00</option>
+                    {Array.from({ length: 24 }, (_, i) => {
+                      const hour = i.toString().padStart(2, "0");
+                      const displayHour = i === 0 ? "오전 12" : i < 12 ? `오전 ${i}` : i === 12 ? "오후 12" : `오후 ${i - 12}`;
+                      return (
+                        <option key={hour} value={`${hour}:00`}>
+                          {displayHour}:00
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm text-slate-400 mb-2">간격</label>
-                  <select
-                    value={customInterval}
-                    onChange={(e) => setCustomInterval(Number(e.target.value))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    <option value={6}>6시간</option>
-                    <option value={12}>12시간</option>
-                    <option value={24}>1일 (24시간)</option>
-                    <option value={48}>2일 (48시간)</option>
-                  </select>
+                  <label className="block text-sm text-slate-400 mb-2">간격 (시간)</label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={168}
+                      value={customInterval}
+                      onChange={(e) => setCustomInterval(Math.max(1, Math.min(168, Number(e.target.value) || 1)))}
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-slate-400 whitespace-nowrap">시간</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1">1~168시간 (최대 7일)</p>
                 </div>
               </div>
 
