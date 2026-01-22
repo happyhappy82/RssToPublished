@@ -59,12 +59,14 @@ export default function ScrapedPage() {
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
   const [aiProcessContent, setAiProcessContent] = useState<ScrapedContent | null>(null);
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
+  // YouTube 댓글 포함 여부 (아이템별로 관리)
+  const [includeCommentsMap, setIncludeCommentsMap] = useState<Record<string, boolean>>({});
   const deleteContent = useDeleteContent();
   const deleteAllContents = useDeleteAllContents();
   const toggleUsed = useToggleUsed();
 
   // 본문 가져오기 (Apify로 실제 콘텐츠 fetch)
-  const handleFetchContent = async (id: string) => {
+  const handleFetchContent = async (id: string, includeComments?: boolean) => {
     setFetchingIds(prev => new Set(prev).add(id));
     try {
       const response = await fetch("/api/process", {
@@ -73,6 +75,7 @@ export default function ScrapedPage() {
         body: JSON.stringify({
           scraped_content_id: id,
           fetch_only: true,
+          include_comments: includeComments || false,
         }),
       });
 
@@ -244,8 +247,20 @@ export default function ScrapedPage() {
                 >
                   <Trash2 size={18} />
                 </button>
+                {/* YouTube인 경우 댓글 포함 체크박스 */}
+                {item.platform === "youtube" && (
+                  <label className="flex items-center space-x-1 text-xs text-slate-400 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeCommentsMap[item.id] || false}
+                      onChange={(e) => setIncludeCommentsMap(prev => ({ ...prev, [item.id]: e.target.checked }))}
+                      className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-900 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-slate-900"
+                    />
+                    <span>댓글</span>
+                  </label>
+                )}
                 <button
-                  onClick={() => handleFetchContent(item.id)}
+                  onClick={() => handleFetchContent(item.id, includeCommentsMap[item.id])}
                   disabled={fetchingIds.has(item.id)}
                   className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white px-5 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all"
                   title="본문 가져오기"
