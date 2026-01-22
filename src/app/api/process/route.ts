@@ -170,16 +170,34 @@ export async function POST(request: NextRequest) {
 
     // 3. Gemini AI로 콘텐츠 가공
     let processedContent: string;
+    console.log("=== Starting Gemini AI processing ===");
+    console.log("Model settings:", JSON.stringify(model_settings));
+    console.log("Original content length:", originalContent?.length || 0);
+    console.log("Prompt length:", prompt_used?.length || 0);
+    console.log("GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+
     try {
       processedContent = await generateContent({
         originalContent,
         customPrompt: prompt_used,
         modelSettings: model_settings,
       });
+      console.log("=== Gemini AI processing completed ===");
+      console.log("Processed content length:", processedContent?.length || 0);
     } catch (aiError) {
-      console.error("Gemini AI error:", aiError);
+      const errorMessage = aiError instanceof Error ? aiError.message : "AI 처리 중 오류가 발생했습니다";
+      const errorStack = aiError instanceof Error ? aiError.stack : "";
+      console.error("=== Gemini AI error ===");
+      console.error("Error message:", errorMessage);
+      console.error("Error stack:", errorStack);
       return NextResponse.json({
-        error: aiError instanceof Error ? aiError.message : "AI 처리 중 오류가 발생했습니다"
+        error: errorMessage,
+        details: {
+          message: errorMessage,
+          modelSettings: model_settings,
+          contentLength: originalContent?.length || 0,
+          apiKeyExists: !!process.env.GEMINI_API_KEY,
+        }
       }, { status: 500 });
     }
 

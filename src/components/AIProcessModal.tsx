@@ -179,11 +179,17 @@ export default function AIProcessModal({
         // 컴포넌트가 아직 마운트되어 있으면 로컬 상태도 업데이트
         setResult(data.data.processed_content);
       } else {
-        useProcessStore.getState().failProcessingJob(contentId, data.error || "AI 가공에 실패했습니다");
+        const errorMsg = data.error || "AI 가공에 실패했습니다";
+        const detailsMsg = data.details ? `\n\n상세: ${JSON.stringify(data.details, null, 2)}` : "";
+        console.error("API Error:", errorMsg, data.details);
+        alert(`에러 발생: ${errorMsg}${detailsMsg}`);
+        useProcessStore.getState().failProcessingJob(contentId, errorMsg);
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "AI 가공 중 오류가 발생했습니다";
       console.error("Process error:", error);
-      useProcessStore.getState().failProcessingJob(contentId, "AI 가공 중 오류가 발생했습니다");
+      alert(`네트워크 에러: ${errorMsg}`);
+      useProcessStore.getState().failProcessingJob(contentId, errorMsg);
     }
   };
 

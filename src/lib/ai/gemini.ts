@@ -70,13 +70,16 @@ export async function generateContent({
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Gemini API error: ${error}`);
+    console.error("Gemini API error response:", error);
+    throw new Error(`Gemini API error (${response.status}): ${error}`);
   }
 
   const data: GeminiResponse = await response.json();
+  console.log("Gemini API response received, candidates:", data.candidates?.length || 0);
 
   if (!data.candidates || data.candidates.length === 0) {
-    throw new Error("No response from Gemini");
+    console.error("Gemini returned no candidates:", JSON.stringify(data));
+    throw new Error("No response from Gemini - empty candidates");
   }
 
   return data.candidates[0].content.parts[0].text;
