@@ -33,7 +33,7 @@ export async function generateContent({
     throw new Error("GEMINI_API_KEY is not set");
   }
 
-  const model = modelSettings?.model || "gemini-3-flash-preview";
+  const model = modelSettings?.model || "gemini-2.5-flash";
   const temperature = modelSettings?.temperature ?? 0.8;
   const maxTokens = modelSettings?.maxTokens || 65536; // 사실상 무제한
 

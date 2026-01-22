@@ -46,12 +46,12 @@ export default function AIProcessModal({
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("model_settings");
       return saved ? JSON.parse(saved) : {
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash",
         temperature: 0.8,
         maxTokens: 65536,
       };
     }
-    return { model: "gemini-3-flash-preview", temperature: 0.8, maxTokens: 65536 };
+    return { model: "gemini-2.5-flash", temperature: 0.8, maxTokens: 65536 };
   });
   const [showModelSettings, setShowModelSettings] = useState(false);
 
@@ -532,11 +532,11 @@ export default function AIProcessModal({
                   onChange={(e) => setModelSettings({ ...modelSettings, model: e.target.value })}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
-                  <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (최신)</option>
-                  <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash (최신 추천)</option>
+                  <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                   <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (빠름)</option>
+                  <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
                 </select>
               </div>
 
