@@ -12,7 +12,8 @@ import type { ContentType } from "@/types";
 // 플랫폼별 본문 + 댓글 가져오기
 async function fetchFullContent(
   platform: string,
-  url: string
+  url: string,
+  options?: { includeComments?: boolean }
 ): Promise<{ content: string; author?: string } | null> {
   try {
     switch (platform) {
@@ -21,8 +22,11 @@ async function fetchFullContent(
         if (videoId) {
           const transcript = await getVideoTranscript(videoId);
           if (transcript?.transcript) {
-            // 댓글도 가져오기
-            const comments = await scrapeYouTubeComments(url, 30);
+            // 댓글은 옵션으로 가져오기 (기본값: false)
+            let comments = "";
+            if (options?.includeComments) {
+              comments = await scrapeYouTubeComments(url, 30) || "";
+            }
             const fullContent = `[본문 (자막)]\n${transcript.transcript}${comments ? `\n\n${comments}` : ""}`;
             return { content: fullContent };
           }
@@ -107,7 +111,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { scraped_content_id, content_type, prompt_used, fetch_only, model_settings } = body;
+    const { scraped_content_id, content_type, prompt_used, fetch_only, model_settings, include_comments } = body;
 
     // fetch_only 모드: scraped_content_id만 필요
     if (fetch_only) {
@@ -136,7 +140,8 @@ export async function POST(request: NextRequest) {
 
     const fullContent = await fetchFullContent(
       scrapedContent.platform,
-      scrapedContent.original_url
+      scrapedContent.original_url,
+      { includeComments: include_comments }
     );
 
     if (fullContent?.content) {

@@ -75,6 +75,9 @@ export default function AIProcessModal({
   const [result, setResult] = useState("");
   const [isSavingToNotion, setIsSavingToNotion] = useState(false);
 
+  // YouTube 댓글 포함 옵션 (기본값: false - Apify 사용량 절감)
+  const [includeYoutubeComments, setIncludeYoutubeComments] = useState(false);
+
   // 초기 로드: DB에서 콘텐츠 유형 + 프롬프트 불러오기
   useEffect(() => {
     const loadFromDB = async () => {
@@ -285,6 +288,7 @@ export default function AIProcessModal({
       content_type: selectedTypeId,
       prompt_used: currentPrompt,
       model_settings: modelSettings,
+      include_comments: content.platform === "youtube" ? includeYoutubeComments : false,
     };
 
     try {
@@ -444,6 +448,26 @@ export default function AIProcessModal({
                 {displayContent || "내용 없음"}
               </div>
             </div>
+
+            {/* YouTube 댓글 옵션 - YouTube 플랫폼일 때만 표시 */}
+            {content.platform === "youtube" && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeYoutubeComments}
+                    onChange={(e) => setIncludeYoutubeComments(e.target.checked)}
+                    className="w-5 h-5 rounded border-slate-600 bg-slate-900 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-slate-900"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-yellow-400">YouTube 댓글 포함</span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      댓글을 포함하면 Apify 사용량이 증가합니다. 필요시에만 체크하세요.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* 콘텐츠 유형 선택 */}
             <div>
