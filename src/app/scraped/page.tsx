@@ -31,7 +31,28 @@ export default function ScrapedPage() {
     limit: 50,
     category: filterCategory === "all" ? undefined : filterCategory,
   });
-  const scraped = scrapedData?.data || [];
+  const scrapedRaw = scrapedData?.data || [];
+
+  // 정렬: 완료된 것 > 처리 중 > 일반 > 사용됨(가려진 것)
+  const scraped = [...scrapedRaw].sort((a, b) => {
+    const aCompleted = processingJobs[a.id]?.status === "completed";
+    const bCompleted = processingJobs[b.id]?.status === "completed";
+    const aProcessing = processingJobs[a.id]?.status === "processing";
+    const bProcessing = processingJobs[b.id]?.status === "processing";
+    const aUsed = a.is_used;
+    const bUsed = b.is_used;
+
+    // 사용됨(가려진 것)은 맨 아래로
+    if (aUsed && !bUsed) return 1;
+    if (!aUsed && bUsed) return -1;
+
+    // 완료된 것 먼저, 그 다음 처리 중, 나머지
+    if (aCompleted && !bCompleted) return -1;
+    if (!aCompleted && bCompleted) return 1;
+    if (aProcessing && !bProcessing) return -1;
+    if (!aProcessing && bProcessing) return 1;
+    return 0;
+  });
   const [selectedContent, setSelectedContent] = useState<(typeof scraped)[0] | null>(null);
   const [aiProcessContent, setAiProcessContent] = useState<ScrapedContent | null>(null);
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
@@ -240,17 +261,27 @@ export default function ScrapedPage() {
                   onClick={() => setAiProcessContent(item as ScrapedContent)}
                   disabled={processingJobs[item.id]?.status === "processing"}
                   className={`flex-1 md:flex-none text-white px-6 py-3 rounded-xl flex items-center justify-center space-x-2 font-medium transition-all ${
-                    processingJobs[item.id]?.status === "processing"
+                    processingJobs[item.id]?.status === "completed"
+                      ? "bg-blue-600 hover:bg-blue-500"
+                      : processingJobs[item.id]?.status === "processing"
                       ? "bg-slate-700 cursor-not-allowed"
                       : "bg-emerald-600 hover:bg-emerald-500"
                   }`}
                 >
                   {processingJobs[item.id]?.status === "processing" ? (
                     <Loader2 size={18} className="animate-spin" />
+                  ) : processingJobs[item.id]?.status === "completed" ? (
+                    <Check size={18} />
                   ) : (
                     <Sparkles size={18} />
                   )}
-                  <span>{processingJobs[item.id]?.status === "processing" ? "생성 중..." : "AI로 가공"}</span>
+                  <span>
+                    {processingJobs[item.id]?.status === "processing"
+                      ? "생성 중..."
+                      : processingJobs[item.id]?.status === "completed"
+                      ? "생성 완료!"
+                      : "AI로 가공"}
+                  </span>
                 </button>
               </div>
             </div>
