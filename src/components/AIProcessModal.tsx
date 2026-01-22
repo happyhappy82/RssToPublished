@@ -75,38 +75,54 @@ export default function AIProcessModal({
   const [result, setResult] = useState("");
   const [isSavingToNotion, setIsSavingToNotion] = useState(false);
 
-  // 초기 로드: 콘텐츠 유형 불러오기 (DB에서 프롬프트 가져와서 병합)
+  // 초기 로드: DB에서 콘텐츠 유형 + 프롬프트 불러오기
   useEffect(() => {
-    const loadPrompts = async () => {
-      // 기본 유형 먼저 로드
-      const localTypes = getContentTypes();
-      setContentTypes(localTypes);
-      if (localTypes.length > 0) {
-        setSelectedTypeId(localTypes[0].id);
-        setCurrentPrompt(localTypes[0].prompt);
-      }
-
-      // DB에서 저장된 프롬프트 가져와서 병합
+    const loadFromDB = async () => {
       try {
         const res = await fetch("/api/prompts");
         const { data: dbPrompts } = await res.json();
+
         if (dbPrompts?.length) {
-          const merged = localTypes.map(t => {
-            const dbPrompt = dbPrompts.find((p: { content_type: string }) => p.content_type === t.id);
-            return dbPrompt ? { ...t, prompt: dbPrompt.prompt_text } : t;
-          });
-          setContentTypes(merged);
-          // 현재 선택된 유형의 프롬프트도 업데이트
-          const currentType = merged.find(t => t.id === localTypes[0]?.id);
-          if (currentType) {
-            setCurrentPrompt(currentType.prompt);
+          // DB에서 유형 목록 구성
+          const dbTypes: ContentTypeItem[] = dbPrompts.map((p: { content_type: string; name: string; prompt_text: string }) => ({
+            id: p.content_type,
+            label: p.name,
+            prompt: p.prompt_text,
+          }));
+          setContentTypes(dbTypes);
+          if (dbTypes.length > 0) {
+            setSelectedTypeId(dbTypes[0].id);
+            setCurrentPrompt(dbTypes[0].prompt);
+          }
+        } else {
+          // DB에 없으면 기본값 사용하고 DB에 저장
+          const localTypes = getContentTypes();
+          setContentTypes(localTypes);
+          if (localTypes.length > 0) {
+            setSelectedTypeId(localTypes[0].id);
+            setCurrentPrompt(localTypes[0].prompt);
+          }
+          // 기본값을 DB에 저장
+          for (const t of localTypes) {
+            await fetch("/api/prompts", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content_type: t.id, prompt_text: t.prompt, name: t.label }),
+            });
           }
         }
       } catch (e) {
-        console.error("Failed to load prompts from DB:", e);
+        console.error("Failed to load from DB:", e);
+        // 에러 시 로컬 기본값 사용
+        const localTypes = getContentTypes();
+        setContentTypes(localTypes);
+        if (localTypes.length > 0) {
+          setSelectedTypeId(localTypes[0].id);
+          setCurrentPrompt(localTypes[0].prompt);
+        }
       }
     };
-    loadPrompts();
+    loadFromDB();
   }, []);
 
   // 모달 열릴 때 기존 작업 결과 복원
@@ -154,8 +170,8 @@ export default function AIProcessModal({
     }
   };
 
-  // 유형 추가
-  const handleAddType = () => {
+  // 유형 추가 (DB에 저장)
+  const handleAddType = async () => {
     if (!newTypeName.trim()) {
       alert("유형 이름을 입력해주세요");
       return;
@@ -167,16 +183,30 @@ export default function AIProcessModal({
       prompt: newTypePrompt.trim() || "이 내용을 바탕으로 마케팅 콘텐츠를 작성해줘.",
     };
 
-    const updatedTypes = addContentType(newType);
-    setContentTypes(updatedTypes);
-    setNewTypeName("");
-    setNewTypePrompt("");
-    setSelectedTypeId(newType.id);
-    alert(`"${newType.label}" 유형이 추가되었습니다.`);
+    try {
+      await fetch("/api/prompts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_type: newType.id,
+          prompt_text: newType.prompt,
+          name: newType.label,
+        }),
+      });
+
+      setContentTypes([...contentTypes, newType]);
+      setNewTypeName("");
+      setNewTypePrompt("");
+      setSelectedTypeId(newType.id);
+      alert(`"${newType.label}" 유형이 추가되었습니다. (모든 사용자에게 공유됨)`);
+    } catch (e) {
+      console.error("Failed to add type:", e);
+      alert("유형 추가에 실패했습니다.");
+    }
   };
 
-  // 유형 삭제
-  const handleDeleteType = (id: string) => {
+  // 유형 삭제 (DB에서도 삭제)
+  const handleDeleteType = async (id: string) => {
     const typeToDelete = contentTypes.find(t => t.id === id);
     if (!typeToDelete) return;
 
@@ -185,25 +215,58 @@ export default function AIProcessModal({
       return;
     }
 
-    if (!confirm(`"${typeToDelete.label}" 유형을 삭제하시겠습니까?`)) return;
+    if (!confirm(`"${typeToDelete.label}" 유형을 삭제하시겠습니까? (모든 사용자에게 적용됨)`)) return;
 
-    const updatedTypes = deleteContentType(id);
-    setContentTypes(updatedTypes);
+    try {
+      // DB에서 해당 content_type의 프롬프트 찾아서 삭제
+      const res = await fetch("/api/prompts");
+      const { data: dbPrompts } = await res.json();
+      const dbPrompt = dbPrompts?.find((p: { content_type: string }) => p.content_type === id);
+      if (dbPrompt) {
+        await fetch(`/api/prompts?id=${dbPrompt.id}`, { method: "DELETE" });
+      }
 
-    // 삭제된 유형이 선택되어 있었으면 첫 번째로 변경
-    if (selectedTypeId === id && updatedTypes.length > 0) {
-      setSelectedTypeId(updatedTypes[0].id);
+      const updatedTypes = contentTypes.filter(t => t.id !== id);
+      setContentTypes(updatedTypes);
+
+      if (selectedTypeId === id && updatedTypes.length > 0) {
+        setSelectedTypeId(updatedTypes[0].id);
+      }
+    } catch (e) {
+      console.error("Failed to delete type:", e);
+      alert("유형 삭제에 실패했습니다.");
     }
   };
 
-  // 기본값으로 초기화
-  const handleResetTypes = () => {
-    if (!confirm("모든 유형을 기본값으로 초기화하시겠습니까? 커스텀 유형이 모두 삭제됩니다.")) return;
+  // 기본값으로 초기화 (DB도 초기화)
+  const handleResetTypes = async () => {
+    if (!confirm("모든 유형을 기본값으로 초기화하시겠습니까? 커스텀 유형이 모두 삭제됩니다. (모든 사용자에게 적용됨)")) return;
 
-    const defaultTypes = resetContentTypes();
-    setContentTypes(defaultTypes);
-    setSelectedTypeId(defaultTypes[0].id);
-    alert("기본값으로 초기화되었습니다.");
+    try {
+      // 기존 DB 데이터 모두 삭제
+      const res = await fetch("/api/prompts");
+      const { data: dbPrompts } = await res.json();
+      for (const p of dbPrompts || []) {
+        await fetch(`/api/prompts?id=${p.id}`, { method: "DELETE" });
+      }
+
+      // 기본값 DB에 저장
+      const defaultTypes = resetContentTypes();
+      for (const t of defaultTypes) {
+        await fetch("/api/prompts", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content_type: t.id, prompt_text: t.prompt, name: t.label }),
+        });
+      }
+
+      setContentTypes(defaultTypes);
+      setSelectedTypeId(defaultTypes[0].id);
+      alert("기본값으로 초기화되었습니다. (모든 사용자에게 적용됨)");
+    } catch (e) {
+      console.error("Failed to reset types:", e);
+      alert("초기화에 실패했습니다.");
+    }
   };
 
   // 백그라운드 처리 시작 - 컴포넌트 언마운트와 무관하게 동작
