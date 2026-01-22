@@ -41,23 +41,31 @@ export default function AIProcessModal({
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypePrompt, setNewTypePrompt] = useState("");
 
-  // 모델 설정 (로컬 스토리지에서 불러오기)
+  // 모델 설정 (로컬 스토리지에서 불러오기) - 항상 최신 기본값으로 강제 초기화
   const VALID_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-3-flash-preview"];
+  const DEFAULT_SETTINGS = { model: "gemini-2.5-flash", temperature: 0.8, maxTokens: 65536 };
   const [modelSettings, setModelSettings] = useState(() => {
-    const defaultSettings = { model: "gemini-2.5-flash", temperature: 0.8, maxTokens: 65536 };
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("model_settings");
       if (saved) {
-        const parsed = JSON.parse(saved);
-        // 저장된 모델이 유효하지 않으면 기본값으로 리셋
-        if (!VALID_MODELS.includes(parsed.model)) {
-          parsed.model = "gemini-2.5-flash";
-          localStorage.setItem("model_settings", JSON.stringify(parsed));
+        try {
+          const parsed = JSON.parse(saved);
+          // 유효성 검사: 모델이 유효하고 maxTokens가 충분한지 확인
+          const needsReset = !VALID_MODELS.includes(parsed.model) ||
+                            !parsed.maxTokens ||
+                            parsed.maxTokens < 65536;
+          if (needsReset) {
+            localStorage.setItem("model_settings", JSON.stringify(DEFAULT_SETTINGS));
+            return DEFAULT_SETTINGS;
+          }
+          return parsed;
+        } catch {
+          localStorage.setItem("model_settings", JSON.stringify(DEFAULT_SETTINGS));
+          return DEFAULT_SETTINGS;
         }
-        return parsed;
       }
     }
-    return defaultSettings;
+    return DEFAULT_SETTINGS;
   });
   const [showModelSettings, setShowModelSettings] = useState(false);
 
