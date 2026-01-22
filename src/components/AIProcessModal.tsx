@@ -75,14 +75,38 @@ export default function AIProcessModal({
   const [result, setResult] = useState("");
   const [isSavingToNotion, setIsSavingToNotion] = useState(false);
 
-  // 초기 로드: 콘텐츠 유형 불러오기
+  // 초기 로드: 콘텐츠 유형 불러오기 (DB에서 프롬프트 가져와서 병합)
   useEffect(() => {
-    const types = getContentTypes();
-    setContentTypes(types);
-    if (types.length > 0) {
-      setSelectedTypeId(types[0].id);
-      setCurrentPrompt(types[0].prompt);
-    }
+    const loadPrompts = async () => {
+      // 기본 유형 먼저 로드
+      const localTypes = getContentTypes();
+      setContentTypes(localTypes);
+      if (localTypes.length > 0) {
+        setSelectedTypeId(localTypes[0].id);
+        setCurrentPrompt(localTypes[0].prompt);
+      }
+
+      // DB에서 저장된 프롬프트 가져와서 병합
+      try {
+        const res = await fetch("/api/prompts");
+        const { data: dbPrompts } = await res.json();
+        if (dbPrompts?.length) {
+          const merged = localTypes.map(t => {
+            const dbPrompt = dbPrompts.find((p: { content_type: string }) => p.content_type === t.id);
+            return dbPrompt ? { ...t, prompt: dbPrompt.prompt_text } : t;
+          });
+          setContentTypes(merged);
+          // 현재 선택된 유형의 프롬프트도 업데이트
+          const currentType = merged.find(t => t.id === localTypes[0]?.id);
+          if (currentType) {
+            setCurrentPrompt(currentType.prompt);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load prompts from DB:", e);
+      }
+    };
+    loadPrompts();
   }, []);
 
   // 모달 열릴 때 기존 작업 결과 복원
@@ -100,14 +124,34 @@ export default function AIProcessModal({
     }
   }, [selectedTypeId, contentTypes]);
 
-  // 프롬프트 저장
-  const savePrompt = () => {
+  // 프롬프트 저장 (DB에 저장해서 공유)
+  const savePrompt = async () => {
     const selectedType = contentTypes.find(t => t.id === selectedTypeId);
     if (!selectedType) return;
 
-    const updatedTypes = updateContentType(selectedTypeId, { prompt: currentPrompt });
-    setContentTypes(updatedTypes);
-    alert(`"${selectedType.label}" 유형의 프롬프트가 저장되었습니다.`);
+    try {
+      const res = await fetch("/api/prompts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_type: selectedTypeId,
+          prompt_text: currentPrompt,
+          name: selectedType.label,
+        }),
+      });
+
+      if (!res.ok) throw new Error("저장 실패");
+
+      // 로컬 상태도 업데이트
+      const updatedTypes = contentTypes.map(t =>
+        t.id === selectedTypeId ? { ...t, prompt: currentPrompt } : t
+      );
+      setContentTypes(updatedTypes);
+      alert(`"${selectedType.label}" 유형의 프롬프트가 저장되었습니다. (모든 사용자에게 공유됨)`);
+    } catch (e) {
+      console.error("Failed to save prompt:", e);
+      alert("프롬프트 저장에 실패했습니다.");
+    }
   };
 
   // 유형 추가

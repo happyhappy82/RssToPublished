@@ -64,6 +64,57 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH - 프롬프트 업데이트 (content_type 기준 upsert)
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { content_type, prompt_text, name } = body;
+
+    if (!content_type || !prompt_text) {
+      return NextResponse.json({ error: "content_type과 prompt_text가 필요합니다" }, { status: 400 });
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    // 기존 프롬프트 확인
+    const { data: existing } = await supabase
+      .from("prompts")
+      .select("id")
+      .eq("content_type", content_type)
+      .single();
+
+    if (existing) {
+      // 업데이트
+      const { data, error } = await supabase
+        .from("prompts")
+        .update({ prompt_text, name: name || content_type })
+        .eq("content_type", content_type)
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ data });
+    } else {
+      // 새로 생성
+      const { data, error } = await supabase
+        .from("prompts")
+        .insert({ content_type, prompt_text, name: name || content_type })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ data }, { status: 201 });
+    }
+  } catch (error) {
+    console.error("PATCH /api/prompts error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 // DELETE - 프롬프트 삭제
 export async function DELETE(request: NextRequest) {
   try {
