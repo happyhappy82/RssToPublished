@@ -77,7 +77,8 @@ export async function generateContent({
 
   const data: GeminiResponse = await response.json();
   const finishReason = data.candidates?.[0]?.finishReason;
-  console.log("Gemini API response received, candidates:", data.candidates?.length || 0, "finishReason:", finishReason);
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  console.log("Gemini API response - finishReason:", finishReason, "textLength:", text.length);
 
   if (!data.candidates || data.candidates.length === 0) {
     console.error("Gemini returned no candidates:", JSON.stringify(data));
@@ -86,10 +87,12 @@ export async function generateContent({
 
   // finishReason 체크 - MAX_TOKENS면 잘린 것
   if (finishReason === "MAX_TOKENS") {
-    console.warn("Gemini response was truncated due to MAX_TOKENS limit");
+    console.warn("⚠️ Gemini response TRUNCATED - MAX_TOKENS reached");
+    // 잘렸다는 표시 추가
+    return text + "\n\n⚠️ [응답이 길어서 잘렸습니다]";
   } else if (finishReason !== "STOP") {
     console.warn("Gemini finishReason:", finishReason);
   }
 
-  return data.candidates[0].content.parts[0].text;
+  return text;
 }
