@@ -14,6 +14,13 @@ interface NotionProperty {
   id: string;
   name: string;
   type: string;
+  status?: {
+    options: { id: string; name: string; color: string }[];
+    groups: { id: string; name: string; option_ids: string[] }[];
+  };
+  select?: {
+    options: { id: string; name: string; color: string }[];
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -94,21 +101,27 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Status 속성이 있으면 추가 (다양한 이름 지원)
+    // Status 속성이 있으면 추가 (다양한 이름 지원) - 실제 옵션에서 첫 번째 사용
     const statusNames = ["status", "상태", "진행상태", "state"];
     for (const statusName of statusNames) {
       const prop = propMap[statusName];
-      if (prop && prop.type === "status") {
+      const fullProp = properties[prop?.name] as NotionProperty | undefined;
+
+      if (prop && prop.type === "status" && fullProp?.status?.options?.length) {
+        // 실제 Status 옵션 중 첫 번째 사용
+        const firstOption = fullProp.status.options[0].name;
         pageProperties[prop.name] = {
           status: {
-            name: "할 일", // 기본 상태 이름
+            name: firstOption,
           },
         };
         break;
-      } else if (prop && prop.type === "select") {
+      } else if (prop && prop.type === "select" && fullProp?.select?.options?.length) {
+        // 실제 Select 옵션 중 첫 번째 사용
+        const firstOption = fullProp.select.options[0].name;
         pageProperties[prop.name] = {
           select: {
-            name: "대기",
+            name: firstOption,
           },
         };
         break;
